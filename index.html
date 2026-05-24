@@ -776,9 +776,21 @@
           gltf => {
             const model = gltf.scene;
             model.traverse((child) => {
-              if (child.isMesh && child.material) {
-                child.material.side = THREE.DoubleSide;
-                child.material.needsUpdate = true;
+              if (child.isMesh) {
+                const mats = Array.isArray(child.material) ? child.material : [child.material];
+                const fixed = mats.map(old => {
+                  const b = new THREE.MeshBasicMaterial();
+                  if (old.map)   b.map   = old.map;
+                  if (old.color) b.color.copy(old.color);
+                  b.side        = THREE.DoubleSide;
+                  b.transparent = old.transparent || false;
+                  b.opacity     = old.opacity !== undefined ? old.opacity : 1;
+                  b.alphaTest   = old.alphaTest || 0;
+                  return b;
+                });
+                child.material      = Array.isArray(child.material) ? fixed : fixed[0];
+                child.castShadow    = false;
+                child.receiveShadow = false;
               }
             });
             // ضبط الحجم تلقائياً ليناسب ارتفاع إنسان (~1.8 وحدة)
