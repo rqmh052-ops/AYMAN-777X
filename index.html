@@ -609,14 +609,25 @@
       window.addEventListener('pointerup', stopJ);
       window.addEventListener('pointercancel', stopJ);
 
+      // --- نظام النظر باللمس (متوافق مع APK / PWA / WebView) ---
       let lookId = null, lastT = { x: 0, y: 0 };
+
+      const isLookTarget = (e) => {
+        if (GameSettings.paused) return false;
+        if (e.target.closest('.action-btn')) return false;
+        if (e.target.closest('#top-controls')) return false;
+        if (e.target.closest('#joystick')) return false;
+        // الجانب الأيمن من الشاشة (35% أو أكثر) — يعمل بغض النظر عن عرض الشاشة
+        return e.clientX >= window.innerWidth * 0.35;
+      };
+
       document.body.addEventListener('pointerdown', e => {
-        if (GameSettings.paused || e.clientX < window.innerWidth / 2 || e.target.closest('.action-btn') || e.target.closest('#top-controls')) return;
-        if (window.innerWidth <= 768) {
-          lookId = e.pointerId; lastT = { x: e.clientX, y: e.clientY };
-          document.body.setPointerCapture(lookId);
-        }
+        if (!isLookTarget(e) || lookId !== null) return;
+        lookId = e.pointerId;
+        lastT  = { x: e.clientX, y: e.clientY };
+        try { document.body.setPointerCapture(lookId); } catch(_) {}
       });
+
       window.addEventListener('pointermove', e => {
         if (e.pointerId !== lookId) return;
         const dx = (e.clientX - lastT.x) * 0.0045;
@@ -625,7 +636,10 @@
         this.mouseDelta.x -= dx;
         this.mouseDelta.y -= dy;
       });
-      window.addEventListener('pointerup', e => { if (e.pointerId === lookId) lookId = null; });
+
+      const stopLook = e => { if (e.pointerId === lookId) lookId = null; };
+      window.addEventListener('pointerup',     stopLook);
+      window.addEventListener('pointercancel', stopLook);
 
       document.getElementById('btn-fire').addEventListener('pointerdown',    e => { e.preventDefault(); if (!GameSettings.paused) this.firePressed = true; });
       document.getElementById('btn-fire').addEventListener('pointerup',      e => { e.preventDefault(); this.firePressed = false; });
@@ -725,7 +739,7 @@
       this.ATTACK_RANGE    = 1.8;           // مسافة الهجوم
       this.SWAP_INTERVAL   = 0.2;           // ثواني بين كل تبديل للمجسم
       this.RESPAWN_DELAY   = 3.0;           // ثواني قبل إعادة الظهور
-      this.ENEMY_SCALE     = 1.6;           // مقياس المجسم - يُضبط تلقائياً
+      this.ENEMY_SCALE     = 2;           // مقياس المجسم - يُضبط تلقائياً
 
       // مؤقتات
       this._swapTimer    = 0;
@@ -776,21 +790,9 @@
           gltf => {
             const model = gltf.scene;
             model.traverse((child) => {
-              if (child.isMesh) {
-                const mats = Array.isArray(child.material) ? child.material : [child.material];
-                const fixed = mats.map(old => {
-                  const b = new THREE.MeshBasicMaterial();
-                  if (old.map)   b.map   = old.map;
-                  if (old.color) b.color.copy(old.color);
-                  b.side        = THREE.DoubleSide;
-                  b.transparent = old.transparent || false;
-                  b.opacity     = old.opacity !== undefined ? old.opacity : 1;
-                  b.alphaTest   = old.alphaTest || 0;
-                  return b;
-                });
-                child.material      = Array.isArray(child.material) ? fixed : fixed[0];
-                child.castShadow    = false;
-                child.receiveShadow = false;
+              if (child.isMesh && child.material) {
+                child.material.side = THREE.DoubleSide;
+                child.material.needsUpdate = true;
               }
             });
             // ضبط الحجم تلقائياً ليناسب ارتفاع إنسان (~1.8 وحدة)
