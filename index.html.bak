@@ -1,0 +1,1135 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a2213" />
+  <title>School Maze Horror V5</title>
+  <style>
+    :root {
+      --bg: #11180f;
+      --hud: #0d1110cc;
+      --hud-border: rgba(255,255,255,.10);
+      --text: #eef2f6;
+      --muted: #c4cfbe;
+      --accent: #edd56a;
+      --icon: #eef2f6;
+      --pause: rgba(0,0,0,.6);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--bg); font-family: system-ui, sans-serif; color: var(--text); touch-action: none; }
+    body.paused #game { filter: brightness(0.7) blur(2px); }
+    #app { position: relative; width: 100%; height: 100%; }
+    #game { display: block; width: 100%; height: 100%; }
+    #hud { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+    #top-controls {
+      position: absolute; top: 8px; left: 8px;
+      display: flex; gap: 4px; align-items: flex-start;
+      pointer-events: auto; flex-direction: row-reverse; z-index: 11;
+    }
+    .pill {
+      height: 26px; display: inline-flex; align-items: center; justify-content: center;
+      gap: 6px; padding: 0 8px; border-radius: 999px;
+      border: 1px solid var(--hud-border); background: var(--hud);
+      color: var(--text); font-size: 11px; font-weight: 700; backdrop-filter: blur(8px);
+    }
+    .button-pill { cursor: pointer; border: none; }
+    .button-pill:active { transform: scale(0.985); }
+    #quality-pill { color: var(--accent); min-width: 58px; }
+    #instructions-panel {
+      position: absolute; top: 44px; left: 8px;
+      background: var(--hud); border: 1px solid var(--hud-border);
+      padding: 8px 10px; border-radius: 10px; font-size: 10px;
+      color: var(--accent); backdrop-filter: blur(8px);
+      max-width: 165px; line-height: 1.45;
+    }
+    #interaction-prompt {
+      position: absolute; top: 65%; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px;
+      border: 1px solid var(--accent); font-size: 15px; font-weight: bold;
+      display: none; pointer-events: none;
+    }
+    .overlay {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      background: var(--pause); pointer-events: auto; opacity: 1; transition: opacity 0.2s; z-index: 50;
+    }
+    .overlay.hidden { opacity: 0; pointer-events: none; }
+    .settings-card {
+      padding: 18px; border-radius: 16px;
+      background: rgba(15, 18, 15, 0.95); border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      width: min(320px, calc(100vw - 24px)); max-height: calc(100vh - 24px);
+      overflow-y: auto; box-sizing: border-box; text-align: right;
+    }
+    .settings-card h2 { margin: 0 0 14px 0; color: var(--accent); text-align: center; }
+    .setting-row { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .setting-row label { font-size: 13px; }
+    input[type="range"] { accent-color: var(--accent); width: min(140px, 42vw); }
+    input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; }
+    .pc-instructions { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; font-size: 11px; line-height: 1.65; margin-bottom: 14px; border: 1px solid rgba(255,255,255,0.05); }
+    .key { background: #333; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+    .close-btn {
+      width: 100%; padding: 10px; border-radius: 8px;
+      background: var(--text); color: #000; font-weight: bold;
+      border: none; cursor: pointer; margin-top: 8px;
+    }
+    #mobile-ui { position: absolute; inset: 0; display: none; pointer-events: none; z-index: 5; }
+    #joystick {
+      position: absolute; left: 18px; bottom: 18px;
+      width: 120px; height: 120px; border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.35) 100%);
+      border: 2px solid rgba(255,255,255,0.18);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07);
+      pointer-events: auto; backdrop-filter: blur(6px);
+    }
+    #joystick .knob {
+      position: absolute; left: 50%; top: 50%;
+      width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
+      background: radial-gradient(circle at 38% 32%, rgba(255,255,255,0.55) 0%, rgba(180,180,180,0.18) 60%, rgba(255,255,255,0.08) 100%);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4), 0 0 0 3px rgba(255,255,255,0.04);
+      transition: box-shadow 0.1s;
+    }
+    .action-btn {
+      position: absolute; display: none;
+      justify-content: center; align-items: center;
+      font-weight: 800; pointer-events: auto;
+      transition: transform 0.08s, box-shadow 0.08s, filter 0.08s;
+      -webkit-tap-highlight-color: transparent; user-select: none;
+    }
+    .action-btn:active { transform: scale(0.91); filter: brightness(1.2); }
+    #btn-fire {
+      width: 80px; height: 80px; bottom: 22px; right: 22px; border-radius: 50%;
+      background: radial-gradient(circle at 40% 30%, #ff5e5e 0%, #c0112b 55%, #7a000e 100%);
+      border: 2.5px solid rgba(255,120,100,0.55);
+      box-shadow: 0 0 18px rgba(220,30,50,0.65), 0 0 40px rgba(200,20,40,0.28), inset 0 1px 0 rgba(255,200,200,0.25);
+    }
+    #btn-fire svg {
+      width: 40px; height: 40px; fill: none; stroke: #fff;
+      stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+      filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
+    }
+    #btn-fire::after {
+      content: ''; position: absolute; inset: -4px; border-radius: 50%;
+      background: transparent; border: 1.5px solid rgba(255,80,60,0.2);
+      animation: pulse-ring 1.6s ease-out infinite;
+    }
+    @keyframes pulse-ring {
+      0%   { transform: scale(1);    opacity: 0.7; }
+      100% { transform: scale(1.45); opacity: 0; }
+    }
+    #btn-interact {
+      width: 76px; height: 76px; bottom: 120px; right: 30px; border-radius: 50%;
+      background: radial-gradient(circle at 40% 30%, #ffe97a 0%, #d4a017 55%, #8a6500 100%);
+      border: 2px solid rgba(255,230,80,0.5);
+      box-shadow: 0 0 14px rgba(220,170,0,0.6), 0 0 32px rgba(200,140,0,0.25), inset 0 1px 0 rgba(255,255,180,0.3);
+      font-size: 26px; color: #fff; text-shadow: 0 1px 6px rgba(180,120,0,0.8);
+    }
+    #crosshair {
+      position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+      background: rgba(255,255,255,0.8); border-radius: 50%;
+      transform: translate(-50%, -50%); pointer-events: none; z-index: 20;
+    }
+    @media (hover: none) and (pointer: coarse) { #mobile-ui { display: block; } }
+    @media (max-width: 480px) {
+      #top-controls { top: 6px; left: 6px; gap: 3px; }
+      .pill { height: 24px; font-size: 10px; padding: 0 7px; }
+      #quality-pill, #fps-pill { min-width: 50px; }
+      #instructions-panel { top: 38px; left: 6px; max-width: 150px; font-size: 10px; padding: 7px 9px; }
+      .settings-card { width: calc(100vw - 16px); padding: 14px; max-height: calc(100vh - 16px); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="game"></canvas>
+    <div id="hud">
+      <div id="top-controls">
+        <button class="pill button-pill" id="settings-pill">الإعدادات ⚙️</button>
+        <div class="pill" id="quality-pill">Medium</div>
+        <div class="pill" id="fps-pill">FPS: 0</div>
+      </div>
+      <div id="instructions-panel">السلاح جاهز.<br>ابحث عن الباب السري للخروج!</div>
+      <div id="interaction-prompt">اضغط [E] لفتح الباب</div>
+    </div>
+    <div id="crosshair"></div>
+    <div id="mobile-ui">
+      <div id="joystick"><div class="knob"></div></div>
+      <div id="btn-fire" class="action-btn">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="2" x2="12" y2="6"></line>
+          <line x1="12" y1="18" x2="12" y2="22"></line>
+          <line x1="2" y1="12" x2="6" y2="12"></line>
+          <line x1="18" y1="12" x2="22" y2="12"></line>
+          <circle cx="12" cy="12" r="2" fill="white"></circle>
+        </svg>
+      </div>
+      <div id="btn-interact" class="action-btn">🚪</div>
+    </div>
+    <div id="settings-overlay" class="overlay">
+      <div class="settings-card">
+        <h2>ابدأ اللعبة</h2>
+        <div class="pc-instructions">
+          <b>تعليمات الـ PC:</b><br>
+          <span class="key">W A S D</span> للحركة السريعة<br>
+          <span class="key">F</span> أو <b>الماوس</b> للإطلاق | <span class="key">E</span> للتفاعل
+        </div>
+        <div class="setting-row">
+          <label>الحساسية (Sensitivity)</label>
+          <input type="range" id="sense-slider" min="0.001" max="0.01" step="0.001" value="0.003">
+        </div>
+        <div class="setting-row">
+          <label>المؤثرات الصوتية</label>
+          <input type="checkbox" id="sound-toggle" checked>
+        </div>
+        <div class="setting-row">
+          <label>الموسيقى (قريباً)</label>
+          <input type="checkbox" id="music-toggle" checked>
+        </div>
+        <button class="close-btn" id="close-settings">▶ ابدأ اللعبة</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+
+  <script>
+  // ============================================================
+  //  GLOBAL SETTINGS
+  // ============================================================
+  const GameSettings = {
+    sensitivity: 0.003,
+    sound: true,
+    music: true,
+    paused: true
+  };
+
+  function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+  function lerp(a, b, t)        { return a + (b - a) * t; }
+  function rand(min, max)       { return min + Math.random() * (max - min); }
+
+  // ============================================================
+  //  TEXTURE GENERATOR  (داخل HTML - لا يحتاج ملف خارجي)
+  // ============================================================
+  function makeTexture({ size = 256, base = '#20261d', detail = '#313b2a', accent = '#0a0c08', repeat = 8 } = {}) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = base; ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size * size * 0.1; i++) {
+      ctx.globalAlpha = Math.random() * 0.2 + 0.04;
+      ctx.fillStyle = Math.random() > 0.5 ? detail : accent;
+      ctx.beginPath(); ctx.arc(Math.random() * size, Math.random() * size, rand(1, 4), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 0.12;
+    for (let i = 0; i < 24; i++) {
+      ctx.fillStyle = Math.random() > 0.7 ? '#6a2b24' : '#ffffff';
+      ctx.fillRect(rand(0, size), rand(0, size), rand(18, 64), rand(1, 5));
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(repeat, repeat);
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  // ============================================================
+  //  AUDIO SYSTEM
+  //  - صوت الإطلاق داخل HTML
+  //  - صوت العدو يُحمَّل من ملف خارجي: audio/enemy_sound.mp3
+  //    ويتحكم به بناءً على المسافة تدريجياً
+  // ============================================================
+  const AudioSys = {
+    ctx: null,
+
+    init() {
+      if (this.ctx) return;
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    },
+
+    playShoot() {
+      if (!GameSettings.sound || !this.ctx) return;
+      const time = this.ctx.currentTime;
+      const bufferSize = this.ctx.sampleRate * 0.3;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 1500;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.8, time);
+      gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+      noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+      noise.start(time);
+    }
+  };
+
+  // ============================================================
+  //  ENEMY SOUND SYSTEM  (صوت العدو بناءً على المسافة)
+  //  يحمّل ملف: audio/enemy_sound.mp3  من السيرفر
+  // ============================================================
+  const EnemyAudio = {
+    buffer: null,
+    source: null,
+    gainNode: null,
+    loaded: false,
+
+    init(audioCtx) {
+      if (this.loaded) return;
+      this.loaded = true;
+      this.gainNode = audioCtx.createGain();
+      this.gainNode.gain.value = 0;
+      this.gainNode.connect(audioCtx.destination);
+
+      fetch('audio/enemy_sound.mp3')
+        .then(r => r.arrayBuffer())
+        .then(ab => audioCtx.decodeAudioData(ab))
+        .then(decoded => {
+          this.buffer = decoded;
+          this._playLoop(audioCtx);
+        })
+        .catch(() => {
+          // صوت العدو غير متوفر - يستمر اللعب بدونه
+          console.warn('[EnemyAudio] audio/enemy_sound.mp3 not found');
+        });
+    },
+
+    _playLoop(audioCtx) {
+      if (!this.buffer) return;
+      this.source = audioCtx.createBufferSource();
+      this.source.buffer = this.buffer;
+      this.source.loop = true;
+      this.source.connect(this.gainNode);
+      this.source.start(0);
+    },
+
+    // يُستدعى كل frame - يضبط مستوى الصوت بناءً على المسافة
+    // maxDist: المسافة التي يصل فيها الصوت إلى أدنى مستوى (لكن لا يُقطع تماماً)
+    updateVolume(distance, maxDist = 30) {
+      if (!this.gainNode || !GameSettings.sound) return;
+      // صوت تدريجي: قريب = 0.9 ، بعيد جداً = 0.03
+      const t = clamp(distance / maxDist, 0, 1);
+      const vol = lerp(0.9, 0.03, t);
+      this.gainNode.gain.setTargetAtTime(vol, AudioSys.ctx.currentTime, 0.2);
+    },
+
+    stop() {
+      if (this.gainNode) this.gainNode.gain.setTargetAtTime(0, AudioSys.ctx.currentTime, 0.1);
+    }
+  };
+
+  // ============================================================
+  //  AK47 PROCEDURAL GUN  (داخل HTML)
+  // ============================================================
+  function createAK47() {
+    const g = new THREE.Group();
+    const metal = new THREE.MeshStandardMaterial({ color: '#1a1f23', roughness: 0.6, metalness: 0.5 });
+    const wood  = new THREE.MeshStandardMaterial({ color: '#624126', roughness: 0.9, metalness: 0.05 });
+    const body      = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 0.78), metal); body.position.z = -0.06;
+    const barrel    = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.48, 8), metal); barrel.rotation.x = Math.PI / 2; barrel.position.z = -0.48;
+    const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.18), wood); handguard.position.z = -0.24;
+    const magazine  = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.28, 0.14), metal); magazine.rotation.x = 0.48; magazine.position.set(0, -0.15, -0.02);
+    const grip      = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.08), wood); grip.rotation.x = -0.35; grip.position.set(0, -0.09, 0.16);
+    const stock     = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.24), wood); stock.position.set(0, 0.05, 0.42);
+    g.add(body, barrel, handguard, magazine, grip, stock);
+    return g;
+  }
+
+  // ============================================================
+  //  MAP LAYOUT  (داخل HTML)
+  // ============================================================
+  const mapLayout = [
+    "###################################",
+    "#S....#.........#...........#.....#",
+    "#####.#.#######.#.#########.#.###.#",
+    "#.....#.....#.#.#.....#.....#.#...#",
+    "#.#########.#.#.#####.#.#####.#.###",
+    "#.........#.#.#.....#.#.....#.#...#",
+    "#########.#.#.#####.#.#####.#.###.#",
+    "#.........#.......#.#...#...#.....#",
+    "#.#######.#######.#.###.#.#######.#",
+    "#.#A....#.......#.#.#...#.........#",
+    "#.#.###.#######.#.#.#.###########.#",
+    "#.#.#.........#.#.#.#.......#...#.#",
+    "#.#########.###.#.#.#######.#.#.#.#",
+    "#.........#...#...#.........#.#.#D#",
+    "#########.###.###############.###.#",
+    "#...........#.....................#",
+    "###################################"
+  ];
+
+  // ============================================================
+  //  SCHOOL MAZE  (داخل HTML)
+  // ============================================================
+  class SchoolMaze {
+    constructor(scene) {
+      this.scene = scene;
+      this.cellSize = 3.4;
+      this.wallHeight = 3.25;
+      this.colliders = [];
+      this.spawn = new THREE.Vector3();
+      this.doorPos = new THREE.Vector3();
+      this.wallMat = new THREE.MeshStandardMaterial({
+        color: '#8f9a81',
+        map: makeTexture({ base: '#242d1d', detail: '#38452f', accent: '#0b0d08', repeat: 6 }),
+        roughness: 0.96
+      });
+      this.floorMat = new THREE.MeshStandardMaterial({
+        color: '#b3b38c',
+        map: makeTexture({ base: '#8d8b5e', detail: '#bbb28a', accent: '#60603d', repeat: 10 }),
+        roughness: 1
+      });
+      this.ceilMat = new THREE.MeshStandardMaterial({ color: '#3a402b', roughness: 1 });
+    }
+
+    build() {
+      const rows = mapLayout.length;
+      const cols = mapLayout[0].length;
+
+      const floorGeo = new THREE.PlaneGeometry(cols * this.cellSize, rows * this.cellSize);
+      const floor = new THREE.Mesh(floorGeo, this.floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.set((cols * this.cellSize) / 2 - this.cellSize / 2, 0, (rows * this.cellSize) / 2 - this.cellSize / 2);
+      this.scene.add(floor);
+
+      const ceil = new THREE.Mesh(floorGeo, this.ceilMat);
+      ceil.rotation.x = Math.PI / 2;
+      ceil.position.copy(floor.position);
+      ceil.position.y = this.wallHeight;
+      this.scene.add(ceil);
+
+      const wallGeo = new THREE.BoxGeometry(this.cellSize, this.wallHeight, this.cellSize);
+      const matrices = [];
+      const dummy = new THREE.Object3D();
+
+      for (let z = 0; z < rows; z++) {
+        for (let x = 0; x < cols; x++) {
+          const t = mapLayout[z][x];
+          const px = x * this.cellSize;
+          const pz = z * this.cellSize;
+          if (t === '#') {
+            dummy.position.set(px, this.wallHeight / 2, pz);
+            dummy.updateMatrix();
+            matrices.push(dummy.matrix.clone());
+            this.colliders.push({
+              min: { x: px - this.cellSize / 2, z: pz - this.cellSize / 2 },
+              max: { x: px + this.cellSize / 2, z: pz + this.cellSize / 2 }
+            });
+          } else {
+            if (t === 'S') this.spawn.set(px, 0, pz);
+            if (t === 'D') { this.doorPos.set(px, 0, pz); this._buildDoor(px, pz); }
+          }
+        }
+      }
+
+      const walls = new THREE.InstancedMesh(wallGeo, this.wallMat, matrices.length);
+      for (let i = 0; i < matrices.length; i++) walls.setMatrixAt(i, matrices[i]);
+      walls.instanceMatrix.needsUpdate = true;
+      this.scene.add(walls);
+
+      this.scene.background = new THREE.Color('#1a2213');
+      this.scene.add(new THREE.AmbientLight('#eae2b2', 0.52));
+      this.scene.add(new THREE.HemisphereLight('#f2efc0', '#5f6632', 0.34));
+      const sun = new THREE.DirectionalLight('#f0edcc', 0.34);
+      sun.position.set(20, 26, 12);
+      this.scene.add(sun);
+
+      for (let i = 0; i < 10; i++) {
+        const rx = Math.floor(rand(1, cols - 1));
+        const rz = Math.floor(rand(1, rows - 1));
+        if (mapLayout[rz][rx] !== '#') {
+          const l = new THREE.PointLight('#ffe8a0', 1.3, 15, 2.0);
+          l.position.set(rx * this.cellSize, 2.5, rz * this.cellSize);
+          this.scene.add(l);
+        }
+      }
+    }
+
+    _buildDoor(x, z) {
+      this.doorGroup = new THREE.Group();
+      this.doorGroup.position.set(x - this.cellSize / 2, 0, z);
+      const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize, this.wallHeight, this.cellSize * 0.8), this.wallMat);
+      doorMesh.position.set(this.cellSize / 2, this.wallHeight / 2, 0);
+      this.doorGroup.add(doorMesh);
+      this.doorCollider = { min: { x: x - this.cellSize / 2, z: z - this.cellSize / 2 }, max: { x: x + this.cellSize / 2, z: z + this.cellSize / 2 } };
+      this.colliders.push(this.doorCollider);
+      this.scene.add(this.doorGroup);
+      this.doorOpened = false;
+    }
+
+    openDoor() {
+      if (this.doorOpened) return;
+      this.doorOpened = true;
+      this.colliders = this.colliders.filter(c => c !== this.doorCollider);
+      const animate = () => {
+        this.doorGroup.rotation.y += 0.04;
+        if (this.doorGroup.rotation.y < Math.PI / 2) requestAnimationFrame(animate);
+      };
+      animate();
+    }
+
+    // إرجاع موضع خلية عشوائية فارغة بعيدة عن نقطة مرجعية
+    getRandomFreeCell(avoidPos, minDist = 12) {
+      const rows = mapLayout.length;
+      const cols = mapLayout[0].length;
+      const candidates = [];
+      for (let z = 1; z < rows - 1; z++) {
+        for (let x = 1; x < cols - 1; x++) {
+          if (mapLayout[z][x] !== '#' && mapLayout[z][x] !== 'D') {
+            const wx = x * this.cellSize;
+            const wz = z * this.cellSize;
+            const dist = Math.hypot(wx - avoidPos.x, wz - avoidPos.z);
+            if (dist >= minDist) candidates.push(new THREE.Vector3(wx, 0, wz));
+          }
+        }
+      }
+      if (candidates.length === 0) {
+        // fallback: أي خلية فارغة
+        for (let z = 1; z < rows - 1; z++) {
+          for (let x = 1; x < cols - 1; x++) {
+            if (mapLayout[z][x] !== '#') candidates.push(new THREE.Vector3(x * this.cellSize, 0, z * this.cellSize));
+          }
+        }
+      }
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+  }
+
+  // ============================================================
+  //  PLAYER SYSTEM  (داخل HTML)
+  // ============================================================
+  class PlayerSystem {
+    constructor(camera, map, onToggleSettings = null) {
+      this.camera = camera;
+      this.map = map;
+      this.toggleSettings = onToggleSettings;
+      this.radius = 0.45;
+      this.speed = 7.0;
+      this.bob = 0;
+      this.hasWeapon = true;
+      this.lastShotTime = 0;
+      this.recoil = 0;
+      this.keys = {};
+      this.mouseDelta = { x: 0, y: 0 };
+      this.joy = { x: 0, y: 0 };
+      this.yaw = Math.PI;
+      this.pitch = 0;
+      this.firePressed = false;
+      this.interactPressed = false;
+      this._buildBody();
+      this._bindInputs();
+    }
+
+    _buildBody() {
+      this.legsGroup = new THREE.Group();
+      const pantsMat = new THREE.MeshStandardMaterial({ color: '#1a252f', roughness: 1 });
+      const bootMat  = new THREE.MeshStandardMaterial({ color: '#111',    roughness: 0.9 });
+      this.leftLeg = new THREE.Group();
+      const llMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.8, 8), pantsMat); llMesh.position.y = 0.4;
+      const llBoot = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.15, 0.28), bootMat); llBoot.position.set(0, 0.075, 0.05);
+      this.leftLeg.add(llMesh, llBoot);
+      this.leftLeg.position.set(-0.16, 0, 0);
+
+      this.rightLeg = new THREE.Group();
+      const rlMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.8, 8), pantsMat); rlMesh.position.y = 0.4;
+      const rlBoot = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.15, 0.28), bootMat); rlBoot.position.set(0, 0.075, 0.05);
+      this.rightLeg.add(rlMesh, rlBoot);
+      this.rightLeg.position.set(0.16, 0, 0);
+
+      this.legsGroup.add(this.leftLeg, this.rightLeg);
+      this.map.scene.add(this.legsGroup);
+
+      this.equipGroup = new THREE.Group();
+      this.equipAK = createAK47();
+      this.equipAK.scale.set(0.38, 0.38, 0.38);
+      this.equipAK.position.set(0.18, -0.25, -0.4);
+      this.equipAK.rotation.set(0, 0.15, 0);
+
+      const skinMat   = new THREE.MeshStandardMaterial({ color: '#e0ac69', roughness: 0.5 });
+      const rightArm  = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.5), skinMat);
+      rightArm.position.set(0.05, -0.2, 0.25); rightArm.rotation.set(Math.PI / 2 + 0.3, 0, 0);
+      const leftArm   = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.45), skinMat);
+      leftArm.position.set(-0.15, -0.15, -0.05); leftArm.rotation.set(Math.PI / 2 - 0.2, 0, -0.4);
+      this.equipAK.add(rightArm, leftArm);
+
+      this.flashLight = new THREE.PointLight('#ffddaa', 0, 6);
+      this.flashLight.position.set(0, 0.05, -0.6);
+      this.equipAK.add(this.flashLight);
+      this.equipGroup.add(this.equipAK);
+      this.camera.add(this.equipGroup);
+    }
+
+    _bindInputs() {
+      window.addEventListener('keydown', e => {
+        this.keys[e.code] = true;
+        if (e.code === 'Escape') this.toggleSettings?.();
+      });
+      window.addEventListener('keyup', e => this.keys[e.code] = false);
+
+      document.body.addEventListener('mousemove', e => {
+        if (document.pointerLockElement && !GameSettings.paused) {
+          this.mouseDelta.x -= e.movementX * GameSettings.sensitivity;
+          this.mouseDelta.y -= e.movementY * GameSettings.sensitivity;
+        }
+      });
+
+      const app = document.getElementById('app');
+      app.addEventListener('mousedown', e => {
+        if (GameSettings.paused) return;
+        if (!document.pointerLockElement && window.innerWidth > 768) { document.body.requestPointerLock(); }
+        else if (e.button === 0) { this.firePressed = true; }
+      });
+      app.addEventListener('mouseup', () => this.firePressed = false);
+
+      const joy = document.getElementById('joystick');
+      const knob = joy.querySelector('.knob');
+      let jId = null, jCenter = { x: 0, y: 0 };
+      joy.addEventListener('pointerdown', e => {
+        if (GameSettings.paused) return;
+        jId = e.pointerId;
+        const rect = joy.getBoundingClientRect();
+        jCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        joy.setPointerCapture(jId);
+      });
+      window.addEventListener('pointermove', e => {
+        if (e.pointerId !== jId) return;
+        let dx = e.clientX - jCenter.x, dy = e.clientY - jCenter.y;
+        const dist = Math.min(Math.hypot(dx, dy), 35);
+        const angle = Math.atan2(dy, dx);
+        knob.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px)`;
+        this.joy.x = (Math.cos(angle) * dist) / 35;
+        this.joy.y = (Math.sin(angle) * dist) / 35;
+      });
+      const stopJ = (e) => { if (e.pointerId === jId) { jId = null; this.joy = { x: 0, y: 0 }; knob.style.transform = 'translate(0,0)'; } };
+      window.addEventListener('pointerup', stopJ);
+      window.addEventListener('pointercancel', stopJ);
+
+      // --- نظام النظر باللمس (متوافق مع APK / PWA / WebView) ---
+      let lookId = null, lastT = { x: 0, y: 0 };
+
+      const isLookTarget = (e) => {
+        if (GameSettings.paused) return false;
+        if (e.target.closest('.action-btn')) return false;
+        if (e.target.closest('#top-controls')) return false;
+        if (e.target.closest('#joystick')) return false;
+        // الجانب الأيمن من الشاشة (35% أو أكثر) — يعمل بغض النظر عن عرض الشاشة
+        return e.clientX >= window.innerWidth * 0.35;
+      };
+
+      document.body.addEventListener('pointerdown', e => {
+        if (!isLookTarget(e) || lookId !== null) return;
+        lookId = e.pointerId;
+        lastT  = { x: e.clientX, y: e.clientY };
+        try { document.body.setPointerCapture(lookId); } catch(_) {}
+      });
+
+      window.addEventListener('pointermove', e => {
+        if (e.pointerId !== lookId) return;
+        const dx = (e.clientX - lastT.x) * 0.0045;
+        const dy = (e.clientY - lastT.y) * 0.0045;
+        lastT = { x: e.clientX, y: e.clientY };
+        this.mouseDelta.x -= dx;
+        this.mouseDelta.y -= dy;
+      });
+
+      const stopLook = e => { if (e.pointerId === lookId) lookId = null; };
+      window.addEventListener('pointerup',     stopLook);
+      window.addEventListener('pointercancel', stopLook);
+
+      document.getElementById('btn-fire').addEventListener('pointerdown',    e => { e.preventDefault(); if (!GameSettings.paused) this.firePressed = true; });
+      document.getElementById('btn-fire').addEventListener('pointerup',      e => { e.preventDefault(); this.firePressed = false; });
+      document.getElementById('btn-interact').addEventListener('pointerdown', e => { e.preventDefault(); if (!GameSettings.paused) this.interactPressed = true; });
+      document.getElementById('btn-interact').addEventListener('pointerup',   e => { e.preventDefault(); this.interactPressed = false; });
+    }
+
+    checkCollision(x, z) {
+      const r = this.radius;
+      for (const c of this.map.colliders) {
+        if (x + r > c.min.x && x - r < c.max.x && z + r > c.min.z && z - r < c.max.z) return true;
+      }
+      return false;
+    }
+
+    update(delta, time) {
+      this.yaw   += this.mouseDelta.x;
+      this.pitch += this.mouseDelta.y;
+      this.mouseDelta = { x: 0, y: 0 };
+      this.pitch = clamp(this.pitch, -Math.PI / 2 + 0.1, Math.PI / 2 - 0.1);
+      this.camera.rotation.y = this.yaw;
+      this.camera.rotation.x = this.pitch;
+
+      let mX = 0, mY = 0;
+      if (this.keys['KeyW']) mY += 1;
+      if (this.keys['KeyS']) mY -= 1;
+      if (this.keys['KeyA']) mX -= 1;
+      if (this.keys['KeyD']) mX += 1;
+      mX += this.joy.x;
+      mY -= this.joy.y;
+      const len = Math.hypot(mX, mY);
+      if (len > 1) { mX /= len; mY /= len; }
+
+      const fwd = new THREE.Vector3(Math.sin(this.yaw), 0,  Math.cos(this.yaw));
+      const rgt = new THREE.Vector3(fwd.z,              0, -fwd.x);
+      const dir = new THREE.Vector3();
+      dir.addScaledVector(rgt, mX).addScaledVector(fwd, mY);
+
+      if (dir.lengthSq() > 0.01) {
+        const nX = this.camera.position.x + dir.x * this.speed * delta;
+        const nZ = this.camera.position.z + dir.z * this.speed * delta;
+        if (!this.checkCollision(nX, this.camera.position.z)) this.camera.position.x = nX;
+        if (!this.checkCollision(this.camera.position.x, nZ)) this.camera.position.z = nZ;
+        this.bob += delta * this.speed * 2.0;
+      }
+
+      this.camera.position.y = 1.62 + Math.sin(this.bob) * 0.05;
+      this.legsGroup.position.set(this.camera.position.x, 0, this.camera.position.z);
+      this.legsGroup.rotation.y = this.yaw;
+
+      if (dir.lengthSq() > 0.01) {
+        this.leftLeg.position.y  = Math.abs(Math.sin(this.bob)) * 0.1;
+        this.leftLeg.position.z  = Math.sin(this.bob) * 0.25;
+        this.rightLeg.position.y = Math.abs(Math.sin(this.bob + Math.PI)) * 0.1;
+        this.rightLeg.position.z = Math.sin(this.bob + Math.PI) * 0.25;
+      } else {
+        this.leftLeg.position.y  = lerp(this.leftLeg.position.y,  0, delta * 10);
+        this.leftLeg.position.z  = lerp(this.leftLeg.position.z,  0, delta * 10);
+        this.rightLeg.position.y = lerp(this.rightLeg.position.y, 0, delta * 10);
+        this.rightLeg.position.z = lerp(this.rightLeg.position.z, 0, delta * 10);
+      }
+
+      if (this.hasWeapon && (this.firePressed || this.keys['KeyF']) && time - this.lastShotTime > 110) {
+        this.lastShotTime = time;
+        this.recoil = 0.15;
+        this.flashLight.intensity = 2;
+        AudioSys.playShoot();
+      }
+
+      this.recoil = lerp(this.recoil, 0, delta * 15);
+      this.equipAK.position.z = -0.4 + this.recoil * 0.15;
+      this.equipAK.rotation.x = this.recoil * 0.4;
+      this.flashLight.intensity = lerp(this.flashLight.intensity, 0, delta * 25);
+    }
+  }
+
+  // ============================================================
+  //  ENEMY SYSTEM
+  //  يحمّل مجسمي WEAM1.glb و WEAM2.glb من مجلد models/
+  //  يبدّل بينهما كل 0.2 ثانية
+  //  شريط دم فوق الرأس
+  //  منع اختراق الجدران
+  //  إعادة ظهور بعد الموت في مكان بعيد
+  // ============================================================
+  class EnemySystem {
+    constructor(scene, maze, camera) {
+      this.scene  = scene;
+      this.maze   = maze;
+      this.camera = camera;
+
+      // --- ثوابت العدو ---
+      this.MAX_HP          = 100;
+      this.DAMAGE_PER_SHOT = 10;
+      this.MOVE_SPEED      = 2.2;           // سرعة حركة العدو
+      this.ENEMY_RADIUS    = 0.45;          // نصف قطر التصادم
+      this.DETECT_RANGE    = 18;            // مسافة اكتشاف اللاعب
+      this.ATTACK_RANGE    = 1.8;           // مسافة الهجوم
+      this.SWAP_INTERVAL   = 0.2;           // ثواني بين كل تبديل للمجسم
+      this.RESPAWN_DELAY   = 3.0;           // ثواني قبل إعادة الظهور
+      this.ENEMY_SCALE     = 2;           // مقياس المجسم - يُضبط تلقائياً
+
+      // مؤقتات
+      this._swapTimer    = 0;
+      this._respawnTimer = 0;
+      this._isDead       = false;
+      this._hp           = this.MAX_HP;
+
+      // مجموعة العدو الرئيسية
+      this.group = new THREE.Group();
+      this.scene.add(this.group);
+
+      // مؤقت آخر إطلاق لمنع الطلقات المتكررة لحظياً
+      this._lastHitTime = 0;
+
+      // إنشاء شريط الدم قبل تحميل المجسمات
+      this._buildHealthBar();
+
+      // تحميل المجسمات
+      this._weam1 = null;
+      this._weam2 = null;
+      this._loadModels();
+
+      // إظهار العدو في موضع A من الخريطة
+      const spawnCell = this._findInitialSpawn();
+      this.group.position.copy(spawnCell);
+    }
+
+    // إيجاد خلية A كموضع أول للعدو
+    _findInitialSpawn() {
+      for (let z = 0; z < mapLayout.length; z++) {
+        for (let x = 0; x < mapLayout[z].length; x++) {
+          if (mapLayout[z][x] === 'A') {
+            return new THREE.Vector3(x * this.maze.cellSize, 0, z * this.maze.cellSize);
+          }
+        }
+      }
+      // fallback
+      return new THREE.Vector3(10, 0, 30);
+    }
+
+    // ---- تحميل WEAM1.glb و WEAM2.glb ----
+    _loadModels() {
+      const loader = new THREE.GLTFLoader();
+
+      const loadOne = (path, onDone) => {
+        loader.load(
+          path,
+          gltf => {
+            const model = gltf.scene;
+            model.traverse((child) => {
+              if (child.isMesh && child.material) {
+                child.material.side = THREE.DoubleSide;
+                child.material.needsUpdate = true;
+              }
+            });
+            // ضبط الحجم تلقائياً ليناسب ارتفاع إنسان (~1.8 وحدة)
+            const box  = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const h    = size.y || 1;
+            const s    = (1.8 / h) * this.ENEMY_SCALE;
+            model.scale.setScalar(s);
+            // توسيط المجسم أفقياً
+            const center = box.getCenter(new THREE.Vector3());
+            model.position.set(-center.x * s, -box.min.y * s, -center.z * s);
+            model.visible = false;
+            this.group.add(model);
+            onDone(model);
+          },
+          undefined,
+          err => {
+            console.warn(`[EnemySystem] فشل تحميل ${path}، يُستخدم بدل مؤقت`);
+            // بدل مؤقت (مربع بشري) لو فشل التحميل
+            const fallback = this._buildFallback();
+            fallback.visible = false;
+            this.group.add(fallback);
+            onDone(fallback);
+          }
+        );
+      };
+
+      loadOne('models/WEAM1.glb', m => {
+        this._weam1 = m;
+        this._weam1.visible = true;   // المجسم الأول يبدأ ظاهراً
+        this._checkBothLoaded();
+      });
+      loadOne('models/WEAM2.glb', m => {
+        this._weam2 = m;
+        this._checkBothLoaded();
+      });
+    }
+
+    _checkBothLoaded() {
+      if (this._weam1 && this._weam2) {
+        // بدء التبديل
+        this._activeModel = 1;
+      }
+    }
+
+    // بدل مؤقت بشري من مربعات لو لم يوجد الملف
+    _buildFallback() {
+      const g    = new THREE.Group();
+      const skin = new THREE.MeshStandardMaterial({ color: '#c98b62', roughness: 0.6 });
+      const dark = new THREE.MeshStandardMaterial({ color: '#333',    roughness: 0.8 });
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.55, 0.45), skin); head.position.y = 1.7;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.8,  0.3), dark); body.position.y = 1.05;
+      const legL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.75, 0.25), dark); legL.position.set(-0.15, 0.38, 0);
+      const legR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.75, 0.25), dark); legR.position.set( 0.15, 0.38, 0);
+      g.add(head, body, legL, legR);
+      return g;
+    }
+
+    // ---- شريط الدم (Canvas Sprite) ----
+    _buildHealthBar() {
+      this._hpCanvas  = document.createElement('canvas');
+      this._hpCanvas.width  = 128;
+      this._hpCanvas.height = 20;
+      this._hpTexture = new THREE.CanvasTexture(this._hpCanvas);
+      const mat = new THREE.SpriteMaterial({ map: this._hpTexture, depthTest: false });
+      this._hpSprite = new THREE.Sprite(mat);
+      this._hpSprite.scale.set(1.4, 0.22, 1);
+      this._hpSprite.position.y = 2.35; // فوق الرأس مباشرة
+      this.group.add(this._hpSprite);
+      this._drawHpBar(this._hp);
+    }
+
+    _drawHpBar(hp) {
+      const ctx = this._hpCanvas.getContext('2d');
+      const w = this._hpCanvas.width, h = this._hpCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+      // خلفية
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.roundRect ? ctx.roundRect(0, 0, w, h, 4) : ctx.fillRect(0, 0, w, h);
+      ctx.fill();
+      // شريط أحمر/أخضر
+      const ratio = clamp(hp / this.MAX_HP, 0, 1);
+      const r = Math.round(255 * (1 - ratio));
+      const g = Math.round(220 * ratio);
+      ctx.fillStyle = `rgb(${r},${g},30)`;
+      const pad = 3;
+      ctx.fillRect(pad, pad, (w - pad * 2) * ratio, h - pad * 2);
+      // نص
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`HP ${hp}`, w / 2, h / 2);
+      this._hpTexture.needsUpdate = true;
+    }
+
+    // ---- منع العدو من اختراق الجدران ----
+    _enemyCollides(x, z) {
+      const r = this.ENEMY_RADIUS;
+      for (const c of this.maze.colliders) {
+        if (x + r > c.min.x && x - r < c.max.x && z + r > c.min.z && z - r < c.max.z) return true;
+      }
+      return false;
+    }
+
+    // ---- الموت ----
+    _die() {
+      this._isDead = true;
+      this._hp = 0;
+      this._drawHpBar(0);
+      this.group.visible = false;
+      this._respawnTimer = 0;
+      EnemyAudio.stop();
+    }
+
+    // ---- إعادة الظهور ----
+    _respawn() {
+      const spawnPos = this.maze.getRandomFreeCell(this.camera.position, 12);
+      this.group.position.copy(spawnPos);
+      this._hp     = this.MAX_HP;
+      this._isDead = false;
+      this.group.visible = true;
+      this._drawHpBar(this._hp);
+    }
+
+    // ---- تسجيل إصابة (تُستدعى من خارج) ----
+    hit() {
+      if (this._isDead) return;
+      const now = performance.now();
+      if (now - this._lastHitTime < 120) return; // منع تكرار السريع
+      this._lastHitTime = now;
+      this._hp = Math.max(0, this._hp - this.DAMAGE_PER_SHOT);
+      this._drawHpBar(this._hp);
+      if (this._hp <= 0) this._die();
+    }
+
+    // ---- UPDATE كل frame ----
+    update(delta, playerPos) {
+      // --- انتظار إعادة الظهور ---
+      if (this._isDead) {
+        this._respawnTimer += delta;
+        if (this._respawnTimer >= this.RESPAWN_DELAY) this._respawn();
+        return;
+      }
+
+      // --- تبديل المجسمين كل 0.2 ثانية ---
+      if (this._weam1 && this._weam2) {
+        this._swapTimer += delta;
+        if (this._swapTimer >= this.SWAP_INTERVAL) {
+          this._swapTimer = 0;
+          this._activeModel = this._activeModel === 1 ? 2 : 1;
+          this._weam1.visible = (this._activeModel === 1);
+          this._weam2.visible = (this._activeModel === 2);
+        }
+      }
+
+      // --- حركة العدو نحو اللاعب ---
+      const ex = this.group.position.x;
+      const ez = this.group.position.z;
+      const px = playerPos.x;
+      const pz = playerPos.z;
+      const dist = Math.hypot(px - ex, pz - ez);
+
+      if (dist < this.DETECT_RANGE && dist > this.ATTACK_RANGE) {
+        const nx = (px - ex) / dist;
+        const nz = (pz - ez) / dist;
+        const newX = ex + nx * this.MOVE_SPEED * delta;
+        const newZ = ez + nz * this.MOVE_SPEED * delta;
+
+        // منع اختراق الجدران: محور X ثم Z مستقلان
+        if (!this._enemyCollides(newX, ez)) this.group.position.x = newX;
+        if (!this._enemyCollides(this.group.position.x, newZ)) this.group.position.z = newZ;
+
+        // توجيه نحو اللاعب
+        this.group.rotation.y = Math.atan2(px - this.group.position.x, pz - this.group.position.z);
+      }
+
+      // --- ضبط الصوت بناءً على المسافة ---
+      if (AudioSys.ctx) {
+        EnemyAudio.init(AudioSys.ctx);
+        EnemyAudio.updateVolume(dist, 30);
+      }
+
+      // --- شريط الدم يواجه الكاميرا دائماً (Sprite يتكفل بذلك تلقائياً) ---
+    }
+  }
+
+  // ============================================================
+  //  UI INIT
+  // ============================================================
+  function initUI({ overlay, btnSettings, btnCloseSettings, fpsPill, promptUI, btnInteractMob, btnFireMob, instPanel }) {
+    function toggleSettings() {
+      GameSettings.paused = !GameSettings.paused;
+      document.body.classList.toggle('paused', GameSettings.paused);
+      overlay.classList.toggle('hidden', !GameSettings.paused);
+      if (!GameSettings.paused) {
+        AudioSys.init();
+        if (window.innerWidth > 768) document.body.requestPointerLock();
+      } else {
+        document.exitPointerLock?.();
+      }
+    }
+    btnSettings.addEventListener('click', toggleSettings);
+    btnCloseSettings.addEventListener('click', toggleSettings);
+    document.getElementById('sense-slider').addEventListener('input',  e => GameSettings.sensitivity = parseFloat(e.target.value));
+    document.getElementById('sound-toggle').addEventListener('change', e => GameSettings.sound = e.target.checked);
+    document.getElementById('music-toggle').addEventListener('change', e => GameSettings.music = e.target.checked);
+    return { toggleSettings, fpsPill, promptUI, btnInteractMob, btnFireMob, instPanel };
+  }
+
+  // ============================================================
+  //  SCENE SETUP
+  // ============================================================
+  const scene    = new THREE.Scene();
+  const camera   = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera.rotation.order = 'YXZ';
+
+  const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: false });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  const maze = new SchoolMaze(scene);
+  maze.build();
+
+  let toggleSettings = () => {};
+  const ui = initUI({
+    overlay:          document.getElementById('settings-overlay'),
+    btnSettings:      document.getElementById('settings-pill'),
+    btnCloseSettings: document.getElementById('close-settings'),
+    fpsPill:          document.getElementById('fps-pill'),
+    promptUI:         document.getElementById('interaction-prompt'),
+    btnInteractMob:   document.getElementById('btn-interact'),
+    btnFireMob:       document.getElementById('btn-fire'),
+    instPanel:        document.getElementById('instructions-panel')
+  });
+  toggleSettings = ui.toggleSettings;
+
+  const player = new PlayerSystem(camera, maze, toggleSettings);
+  camera.position.copy(maze.spawn);
+  camera.position.y = 1.62;
+  scene.add(camera);
+
+  // NPC عند الباب
+  const npcGroup = new THREE.Group();
+  const npcMat = new THREE.MeshStandardMaterial({ color: '#cccccc' });
+  npcGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), npcMat).translateY(1.6));
+  npcGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.3), npcMat).translateY(1.0));
+  npcGroup.position.set(maze.doorPos.x, 0, maze.doorPos.z - maze.cellSize * 1.5);
+  scene.add(npcGroup);
+  npcGroup.visible = false;
+
+  // ---- إنشاء العدو ----
+  const enemy = new EnemySystem(scene, maze, camera);
+
+  const fpsPill        = document.getElementById('fps-pill');
+  const promptUI       = document.getElementById('interaction-prompt');
+  const btnInteractMob = document.getElementById('btn-interact');
+  const btnFireMob     = document.getElementById('btn-fire');
+  const instPanel      = document.getElementById('instructions-panel');
+
+  btnFireMob.style.display = 'flex';
+  instPanel.innerHTML = "السلاح جاهز.<br>ابحث عن الباب السري للخروج!";
+
+  // ============================================================
+  //  SHOOTING RAY-CAST  (تفحص هل الطلقة أصابت العدو)
+  // ============================================================
+  const _raycaster = new THREE.Raycaster();
+  let _lastShotCheck = 0;
+
+  function checkShotHit(time) {
+    if (time - _lastShotCheck < 115) return;
+    // نتحقق فقط لو اللاعب أطلق للتو
+    const justFired = player.hasWeapon &&
+      (player.firePressed || player.keys['KeyF']) &&
+      time - player.lastShotTime < 130;
+    if (!justFired) return;
+    _lastShotCheck = time;
+
+    // Ray من مركز الشاشة
+    _raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+    const hits = _raycaster.intersectObject(enemy.group, true);
+    if (hits.length > 0 && hits[0].distance < 25) {
+      enemy.hit();
+    }
+  }
+
+  // ============================================================
+  //  MAIN LOOP
+  // ============================================================
+  let lastTime = performance.now();
+  let frames = 0, lastFps = lastTime;
+
+  function loop(time) {
+    requestAnimationFrame(loop);
+    const delta = Math.min((time - lastTime) / 1000, 0.1);
+    lastTime = time;
+
+    frames++;
+    if (time - lastFps >= 1000) { fpsPill.innerText = 'FPS: ' + frames; frames = 0; lastFps = time; }
+
+    if (!GameSettings.paused) {
+      player.update(delta, time);
+      enemy.update(delta, camera.position);
+      checkShotHit(time);
+    }
+
+    // --- تفاعل الباب ---
+    const distToDoor = camera.position.distanceTo(maze.doorPos);
+    if (distToDoor < 2.5 && !maze.doorOpened) {
+      promptUI.style.display = 'block';
+      btnInteractMob.style.display = 'flex';
+      if (player.interactPressed || player.keys['KeyE']) {
+        maze.openDoor();
+        npcGroup.visible = true;
+        instPanel.innerHTML = "لقد وجدت المخرج!<br>اذهب وتحدث مع الناجي.";
+        player.interactPressed = false;
+        player.keys['KeyE'] = false;
+      }
+    } else {
+      promptUI.style.display = 'none';
+      if (!maze.doorOpened) btnInteractMob.style.display = 'none';
+    }
+
+    if (maze.doorOpened && camera.position.z < maze.doorPos.z - 2) {
+      instPanel.innerHTML = "السلام عليكم! لقد تمكنت من الخروج بسلام.";
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  loop(performance.now());
+  </script>
+</body>
+</html>
