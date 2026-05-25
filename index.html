@@ -152,16 +152,31 @@
         <div class="pill" id="quality-pill">Medium</div>
         <div class="pill" id="fps-pill">FPS: 0</div>
       </div>
-      <div id="instructions-panel">السلاح جاهز.<br>ابحث عن الباب السري للخروج!</div>
+      <div id="instructions-panel">اجمع 3 مفاتيح 🗝️<br>لفتح الباب والهروب!</div>
       <div id="interaction-prompt">اضغط [E] لفتح الباب</div>
       <div id="hearts-hud" style="
         position:absolute;top:44px;right:8px;
-        display:flex;gap:4px;direction:ltr;
+        display:flex;gap:5px;direction:ltr;
         background:rgba(13,17,16,0.85);
-        border:1px solid rgba(255,255,255,0.1);
+        border:1px solid rgba(255,80,80,0.25);
+        border-radius:999px;padding:5px 12px;
+        pointer-events:none;align-items:center;
+      "></div>
+      <div id="keys-hud" style="
+        position:absolute;top:80px;right:8px;
+        display:flex;gap:4px;direction:ltr;align-items:center;
+        background:rgba(13,17,16,0.85);
+        border:1px solid rgba(255,200,0,0.3);
         border-radius:999px;padding:4px 10px;
-        pointer-events:none;
-      ">❤️❤️❤️</div>
+        pointer-events:none;font-size:13px;font-weight:700;color:#ffd700;
+      ">🗝️ 0/3</div>
+      <button id="map-btn" style="
+        position:absolute;top:116px;right:8px;
+        background:rgba(13,17,16,0.85);border:1px solid rgba(255,200,0,0.3);
+        border-radius:999px;padding:4px 10px;
+        font-size:12px;font-weight:700;color:#aaa;cursor:pointer;
+        pointer-events:auto;display:none;
+      ">🗺️ الخريطة [M]</button>
     </div>
     <div id="crosshair"></div>
     <div id="mobile-ui">
@@ -184,7 +199,11 @@
         <div class="pc-instructions">
           <b>تعليمات الـ PC:</b><br>
           <span class="key">W A S D</span> للحركة السريعة<br>
-          <span class="key">F</span> أو <b>الماوس</b> للإطلاق | <span class="key">E</span> للتفاعل
+          <span class="key">F</span> أو <b>الماوس</b> للإطلاق | <span class="key">E</span> للتفاعل<br>
+          <span class="key">M</span> لفتح الخريطة (بعد جمعها)<br>
+          🗝️ اجمع 3 مفاتيح لفتح الباب<br>
+          🗺️ ابحث عن الخريطة في الممرات<br>
+          💡 عند قلب واحد → هدية خريطة!
         </div>
         <div class="setting-row">
           <label>الحساسية (Sensitivity)</label>
@@ -354,24 +373,45 @@
   // ============================================================
   //  MAP LAYOUT  (داخل HTML)
   // ============================================================
+  // خريطة مفتوحة بالكامل — كل منطقة متصلة بممرات متعددة لا توجد أماكن مغلقة
   const mapLayout = [
-    "###################################",
-    "#S....#.........#...........#.....#",
-    "#####.#.#######.#.#########.#.###.#",
-    "#.....#.....#.#.#.....#.....#.#...#",
-    "#.#########.#.#.#####.#.#####.#.###",
-    "#.........#.#.#.....#.#.....#.#...#",
-    "#########.#.#.#####.#.#####.#.###.#",
-    "#.........#.......#.#...#...#.....#",
-    "#.#######.#######.#.###.#.#######.#",
-    "#.#A....#.......#.#.#...#.........#",
-    "#.#.###.#######.#.#.#.###########.#",
-    "#.#.#.........#.#.#.#.......#...#.#",
-    "#.#########.###.#.#.#######.#.#.#.#",
-    "#.........#...#...#.........#.#.#D#",
-    "#########.###.###############.###.#",
-    "#...........#.....................#",
-    "###################################"
+    "#####################################",
+    "#S...........#......#...............#",
+    "#.#########..#..##..#..########.##..#",
+    "#.#.......#..#..#...#..#......#.#...#",
+    "#.#..###..#..####...####..##..#.#.###",
+    "#....#.#.........#.......#.#...#....#",
+    "#.##.#.#.######..#..####.#.#.###.#..#",
+    "#.#..#...#....#..#..#....#...#...#..#",
+    "#.#..###.#.##.#..#..#..###.###.###..#",
+    "#....#...#.#.....#.....#...#........#",
+    "#.####...#.#.#####..####...#.#####..#",
+    "#.....#..#.#.......#.....#.#.#....#..#",
+    "#..##.#..#.#########.###.#...#.##.#..#",
+    "#..#..#..#...#.......#...#####.#..#..#",
+    "#..#..####.#.#.#######.#.......#..####",
+    "#..#........#.#.......#.#.##...#.....#",
+    "#..########.#.#.#####.#.#.#.####.##..#",
+    "#..#........#.......#.#.#.#.#.....#..#",
+    "#..#.######.#.#####.#.#.#.#.#..##.#..#",
+    "#...#.....#.#.#.....#...#.#.#..#..#..#",
+    "#.###.###.#.#.#.#######.#.#.####.#.###",
+    "#.....#.#...#...#.......#.#......#....#",
+    "#.#####.#####...#..#####.##########...#",
+    "#.#.....#.....A.#..#.....#............#",
+    "#.#.#####.#####..#.#.###.#..#######.##",
+    "#...#.....#.......#.#...#...#.......#.#",
+    "#.###.###.########.###.###..#.#####.#.#",
+    "#.....#.#..........#.......#.#.....#..#",
+    "#.#####.#.##########.#####.#.#.###.#..#",
+    "#.......#.#.........#.#....#.#.#...####",
+    "#.#######.#.#######.#.#.####.#.#.#....#",
+    "#.........#.#.......#.#.#....#.#.#.##.#",
+    "#.#########.#.#######.#.#.####.#.#.#..#",
+    "#.#.........#.#.......#.#.#....#.#.#..#",
+    "#.#.#########.#.#######.#.#.####.#.####",
+    "#...#.........#.........#...#.........D#",
+    "#####################################",
   ];
 
   // ============================================================
@@ -418,6 +458,11 @@
       const matrices = [];
       const dummy = new THREE.Object3D();
 
+      // مواقع المفاتيح والخريطة
+      this.keyObjects = [];
+      this.mapItemObj = null;
+      this._freeCells = [];
+
       for (let z = 0; z < rows; z++) {
         for (let x = 0; x < cols; x++) {
           const t = mapLayout[z][x];
@@ -434,6 +479,7 @@
           } else {
             if (t === 'S') this.spawn.set(px, 0, pz);
             if (t === 'D') { this.doorPos.set(px, 0, pz); this._buildDoor(px, pz); }
+            if (t !== 'D' && t !== 'S') this._freeCells.push({ x: px, z: pz });
           }
         }
       }
@@ -443,8 +489,12 @@
       walls.instanceMatrix.needsUpdate = true;
       this.scene.add(walls);
 
+      // ---- وضع المفاتيح الثلاثة في مواقع عشوائية بعيدة عن نقطة البداية ----
+      this._placeKeys();
+      // ---- وضع الخريطة (آيتم) ----
+      this._placeMapItem();
+
       this.scene.background = new THREE.Color('#1a2213');
-      // على موبايل: نقرب الضباب أكثر لتقليل ما يُرسم
       const fogFar = _isMobile ? 45 : 75;
       this.scene.fog = new THREE.Fog('#1a2213', 14, fogFar);
 
@@ -454,14 +504,12 @@
       sun.position.set(20, 26, 12);
       this.scene.add(sun);
 
-      // 3 نقاط ضوء فقط بدل 10 — PointLight مكلف جداً على موبايل
       const lightPositions = [];
       for (let z = 1; z < rows - 1; z++) {
         for (let x = 1; x < cols - 1; x++) {
           if (mapLayout[z][x] !== '#') lightPositions.push([x * this.cellSize, z * this.cellSize]);
         }
       }
-      // اختر 3 مواقع موزعة
       const step = Math.floor(lightPositions.length / 3);
       for (let i = 0; i < 3; i++) {
         const [lx, lz] = lightPositions[Math.min(i * step + step / 2 | 0, lightPositions.length - 1)];
@@ -469,6 +517,67 @@
         l.position.set(lx, 2.5, lz);
         this.scene.add(l);
       }
+    }
+
+    _placeKeys() {
+      // اختر 3 خلايا حرة بعيدة عن البداية
+      const shuffled = [...this._freeCells].sort(() => Math.random() - 0.5);
+      const farCells = shuffled.filter(c => Math.hypot(c.x - this.spawn.x, c.z - this.spawn.z) > 30);
+      const chosen = farCells.slice(0, 3);
+      if (chosen.length < 3) chosen.push(...shuffled.slice(0, 3 - chosen.length));
+
+      const keyColors = [0xffd700, 0x00bfff, 0xff4500];
+      chosen.forEach((cell, i) => {
+        const keyGroup = new THREE.Group();
+        // جسم المفتاح
+        const headMat = new THREE.MeshStandardMaterial({ color: keyColors[i], metalness: 0.9, roughness: 0.1, emissive: new THREE.Color(keyColors[i]), emissiveIntensity: 0.3 });
+        const head = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.06, 8, 16), headMat);
+        head.rotation.x = Math.PI / 2;
+        head.position.y = 0.55;
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 8), headMat);
+        shaft.position.y = 0.28;
+        const tooth1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.06), headMat);
+        tooth1.position.set(0.1, 0.18, 0);
+        const tooth2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.06), headMat);
+        tooth2.position.set(0.1, 0.1, 0);
+        keyGroup.add(head, shaft, tooth1, tooth2);
+
+        // ضوء صغير حول المفتاح
+        const kLight = new THREE.PointLight(keyColors[i], 0.8, 4);
+        kLight.position.y = 0.5;
+        keyGroup.add(kLight);
+
+        keyGroup.position.set(cell.x, 0, cell.z);
+        keyGroup.userData = { isKey: true, keyIndex: i, collected: false, worldPos: { x: cell.x, z: cell.z } };
+        this.keyObjects.push(keyGroup);
+        this.scene.add(keyGroup);
+      });
+    }
+
+    _placeMapItem() {
+      // اختر خلية حرة عشوائية
+      const shuffled = [...this._freeCells].sort(() => Math.random() - 0.5);
+      const cell = shuffled.find(c => Math.hypot(c.x - this.spawn.x, c.z - this.spawn.z) > 15) || shuffled[0];
+      if (!cell) return;
+
+      const mapGroup = new THREE.Group();
+      const paperMat = new THREE.MeshStandardMaterial({ color: '#e8d5a3', roughness: 0.8, emissive: new THREE.Color('#c4a84f'), emissiveIntensity: 0.2 });
+      const paper = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.02, 0.35), paperMat);
+      paper.position.y = 0.01;
+      // رسم تفاصيل على الورقة
+      const lineMat = new THREE.MeshStandardMaterial({ color: '#5a3e28' });
+      for (let i = 0; i < 3; i++) {
+        const line = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.005, 0.02), lineMat);
+        line.position.set(0, 0.015, -0.06 + i * 0.06);
+        paper.add(line);
+      }
+      const mLight = new THREE.PointLight('#ffcc55', 0.6, 3);
+      mLight.position.y = 0.5;
+      mapGroup.add(paper, mLight);
+      mapGroup.position.set(cell.x, 0, cell.z);
+      mapGroup.userData = { isMapItem: true, collected: false, worldPos: { x: cell.x, z: cell.z } };
+      this.mapItemObj = mapGroup;
+      this.scene.add(mapGroup);
     }
 
     _buildDoor(x, z) {
@@ -485,6 +594,7 @@
 
     openDoor() {
       if (this.doorOpened) return;
+      if (GameState.keysCollected < GameState.totalKeys) return; // يحتاج 3 مفاتيح
       this.doorOpened = true;
       this.colliders = this.colliders.filter(c => c !== this.doorCollider);
       const animate = () => {
@@ -674,6 +784,14 @@
 
     checkCollision(x, z) {
       const r = this.radius;
+      // حدود الخريطة الخارجية
+      const cols = mapLayout[0].length;
+      const rows = mapLayout.length;
+      const maxX = (cols - 1) * this.map.cellSize + this.map.cellSize / 2;
+      const maxZ = (rows - 1) * this.map.cellSize + this.map.cellSize / 2;
+      const minX = -this.map.cellSize / 2;
+      const minZ = -this.map.cellSize / 2;
+      if (x - r < minX || x + r > maxX || z - r < minZ || z + r > maxZ) return true;
       for (const c of this.map.colliders) {
         if (x + r > c.min.x && x - r < c.max.x && z + r > c.min.z && z - r < c.max.z) return true;
       }
@@ -771,18 +889,60 @@
     questionActive: false,
     gameOver: false,
     captureActive: false,
+    keysCollected: 0,
+    totalKeys: 3,
+    hasMap: false,
+    mapRevealed: false,
   };
 
-  // ---- رسم القلوب في الـ HUD ----
+  // ---- رسم القلوب SVG في الـ HUD ----
+  function makeSVGHeart(filled) {
+    const color = filled ? '#ff2244' : '#333';
+    const glow  = filled ? 'drop-shadow(0 0 4px rgba(255,30,60,0.9))' : 'none';
+    const anim  = filled ? 'heartbeat 1.4s ease-in-out infinite' : 'none';
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+      style="filter:${glow};animation:${anim};flex-shrink:0;">
+      <defs>
+        <radialGradient id="hg${filled?'f':'e'}" cx="50%" cy="35%" r="60%">
+          <stop offset="0%" stop-color="${filled?'#ff6680':'#555'}"/>
+          <stop offset="100%" stop-color="${filled?'#cc0033':'#222'}"/>
+        </radialGradient>
+      </defs>
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+        fill="url(#hg${filled?'f':'e'})" stroke="${filled?'#ff0033':'#444'}" stroke-width="0.5"/>
+    </svg>`;
+  }
+
   function renderHearts() {
-    let el = document.getElementById('hearts-hud');
+    const el = document.getElementById('hearts-hud');
     if (!el) return;
+    // أضف CSS للأنيميشن إن لم يكن موجوداً
+    if (!document.getElementById('heart-style')) {
+      const st = document.createElement('style');
+      st.id = 'heart-style';
+      st.textContent = `
+        @keyframes heartbeat {
+          0%,100% { transform:scale(1); }
+          15%      { transform:scale(1.22); }
+          30%      { transform:scale(1); }
+          45%      { transform:scale(1.12); }
+          60%      { transform:scale(1); }
+        }
+        @keyframes heartPop {
+          0%   { transform:scale(0.5); opacity:0; }
+          60%  { transform:scale(1.3); opacity:1; }
+          100% { transform:scale(1);   opacity:1; }
+        }
+        .heart-pop { animation:heartPop 0.4s ease forwards !important; }
+      `;
+      document.head.appendChild(st);
+    }
     el.innerHTML = '';
     for (let i = 0; i < GameState.maxHearts; i++) {
-      const h = document.createElement('span');
-      h.textContent = i < GameState.hearts ? '❤️' : '🖤';
-      h.style.fontSize = '22px';
-      el.appendChild(h);
+      const span = document.createElement('span');
+      span.style.display = 'flex';
+      span.innerHTML = makeSVGHeart(i < GameState.hearts);
+      el.appendChild(span);
     }
   }
 
@@ -957,17 +1117,62 @@
       div.innerHTML = `
         <style>
           @keyframes defeatFadeIn { from{opacity:0;transform:scale(1.08)} to{opacity:1;transform:scale(1)} }
-          @keyframes heartPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+          @keyframes defeatSkull { 0%,100%{transform:translateY(0) rotate(-3deg)} 50%{transform:translateY(-8px) rotate(3deg)} }
+          @keyframes defeatGlitch {
+            0%,100% { text-shadow: -2px 0 #ff0044, 2px 0 #00eeff, 0 0 20px rgba(255,0,68,0.8); transform:skewX(0deg); }
+            10%      { text-shadow: 3px 0 #ff0044, -3px 0 #00eeff; transform:skewX(-3deg); }
+            20%      { text-shadow: -3px 0 #ff0044, 3px 0 #00eeff; transform:skewX(3deg); }
+            30%      { text-shadow: 2px 2px #ff0044, -2px -2px #00eeff; transform:skewX(0deg); }
+          }
+          @keyframes defeatPulse { 0%,100%{opacity:0.7} 50%{opacity:1} }
         </style>
-        <div style="text-align:center;padding:30px 24px;">
-          <div style="font-size:54px;font-weight:900;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,0.6);margin-bottom:8px;">
-            قُضي عليك
+        <div style="text-align:center;padding:30px 24px;position:relative;">
+          <!-- SVG عنوان قُضي عليك -->
+          <div style="margin-bottom:10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 90" width="min(360px, 88vw)" height="auto" style="overflow:visible;">
+              <defs>
+                <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%"   stop-color="#ff6666"/>
+                  <stop offset="40%"  stop-color="#ff0033"/>
+                  <stop offset="100%" stop-color="#8b0000"/>
+                </linearGradient>
+                <filter id="titleGlow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="4" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <filter id="titleShadow">
+                  <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#ff0000" flood-opacity="0.7"/>
+                </filter>
+              </defs>
+              <!-- خلفية النص -->
+              <rect x="2" y="2" width="376" height="86" rx="14" fill="rgba(0,0,0,0.4)" stroke="rgba(255,0,51,0.4)" stroke-width="1.5"/>
+              <!-- شرارات زخرفية -->
+              <line x1="20" y1="44" x2="60" y2="44" stroke="#ff0033" stroke-width="1" opacity="0.5" stroke-dasharray="4,3"/>
+              <line x1="320" y1="44" x2="360" y2="44" stroke="#ff0033" stroke-width="1" opacity="0.5" stroke-dasharray="4,3"/>
+              <!-- النص الرئيسي -->
+              <text x="190" y="58"
+                font-family="'Arial Black', 'Impact', sans-serif"
+                font-size="52"
+                font-weight="900"
+                text-anchor="middle"
+                fill="url(#titleGrad)"
+                filter="url(#titleShadow)"
+                letter-spacing="3"
+                style="animation:defeatGlitch 2.5s ease-in-out infinite;">
+                قُضي عليك
+              </text>
+              <!-- خط تحت النص -->
+              <line x1="60" y1="70" x2="320" y2="70" stroke="rgba(255,0,51,0.5)" stroke-width="1.5"/>
+              <!-- نقاط زخرفية -->
+              <circle cx="50" cy="44" r="3" fill="#ff0033" opacity="0.7"/>
+              <circle cx="330" cy="44" r="3" fill="#ff0033" opacity="0.7"/>
+            </svg>
           </div>
-          <div style="font-size:20px;color:#ffb300;font-weight:700;margin-bottom:28px;
-            text-shadow:0 2px 8px rgba(0,0,0,0.5);">
+          <div style="font-size:18px;color:#ffb300;font-weight:700;margin-bottom:20px;
+            text-shadow:0 2px 8px rgba(0,0,0,0.5);animation:defeatPulse 1.5s ease infinite;">
             لقد قام نيجابور بجبرك
           </div>
-          <div id="defeat-hearts" style="font-size:30px;margin-bottom:20px;animation:heartPulse 1s ease infinite;"></div>
+          <div id="defeat-hearts" style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;align-items:center;"></div>
           <button id="defeat-btn" style="
             padding:14px 40px;font-size:18px;font-weight:800;
             background:linear-gradient(135deg,#ff6f00,#ff8f00);color:#fff;
@@ -986,13 +1191,14 @@
       this._onContinue = onContinue;
       GameSettings.paused = true;
       document.exitPointerLock?.();
-      // تحديث القلوب المعروضة
+      // تحديث القلوب المعروضة بـ SVG
       const hDiv = document.getElementById('defeat-hearts');
-      let hStr = '';
+      hDiv.innerHTML = '';
       for (let i = 0; i < GameState.maxHearts; i++) {
-        hStr += i < GameState.hearts ? '❤️' : '🖤';
+        const sp = document.createElement('span');
+        sp.innerHTML = makeSVGHeart(i < GameState.hearts);
+        hDiv.appendChild(sp);
       }
-      hDiv.textContent = hStr;
       // تعديل زر استمرار / بداية من جديد
       const btn = document.getElementById('defeat-btn');
       if (GameState.hearts <= 0) {
@@ -1012,7 +1218,7 @@
   };
 
   // ============================================================
-  //  SHOE KICK ANIMATION  (ضرب بالحذاء)
+  //  SHOE KICK ANIMATION  SVG (ضرب بالحذاء)
   // ============================================================
   const KickAnimation = {
     _el: null,
@@ -1025,34 +1231,95 @@
         pointer-events:none;
       `;
       div.innerHTML = `
-        <div id="kick-inner" style="
-          font-size:80px;
-          animation:kickAnim 0.7s ease-out forwards;
-          filter:drop-shadow(0 0 20px rgba(255,200,0,0.8));
-        ">👟💥</div>
         <style>
-          @keyframes kickAnim {
-            0%   { transform:translateX(-120px) rotate(-30deg) scale(0.5); opacity:0; }
-            40%  { transform:translateX(20px) rotate(10deg) scale(1.3); opacity:1; }
-            70%  { transform:translateX(-10px) rotate(-5deg) scale(1.1); opacity:1; }
-            100% { transform:translateX(0) rotate(0deg) scale(1); opacity:0; }
+          @keyframes kickSvgAnim {
+            0%   { transform:translateX(-160px) translateY(40px) rotate(-45deg) scale(0.4); opacity:0; filter:blur(4px); }
+            35%  { transform:translateX(30px) translateY(-10px) rotate(15deg) scale(1.4); opacity:1; filter:blur(0); }
+            55%  { transform:translateX(-15px) translateY(5px) rotate(-8deg) scale(1.15); opacity:1; }
+            75%  { transform:translateX(8px) translateY(0) rotate(3deg) scale(1.05); opacity:1; }
+            100% { transform:translateX(0) translateY(0) rotate(0deg) scale(1); opacity:0; filter:blur(3px); }
+          }
+          @keyframes kickSpark1 {
+            0%   { transform:translate(0,0) scale(0); opacity:1; }
+            100% { transform:translate(60px,-50px) scale(0.3); opacity:0; }
+          }
+          @keyframes kickSpark2 {
+            0%   { transform:translate(0,0) scale(0); opacity:1; }
+            100% { transform:translate(-40px,-70px) scale(0.2); opacity:0; }
+          }
+          @keyframes kickSpark3 {
+            0%   { transform:translate(0,0) scale(0); opacity:1; }
+            100% { transform:translate(80px,30px) scale(0.2); opacity:0; }
+          }
+          @keyframes kickImpact {
+            0%   { transform:scale(0); opacity:1; }
+            50%  { transform:scale(1.6); opacity:0.8; }
+            100% { transform:scale(2.5); opacity:0; }
           }
         </style>
+        <div id="kick-inner" style="position:relative;width:200px;height:200px;display:flex;align-items:center;justify-content:center;animation:kickSvgAnim 0.75s cubic-bezier(0.22,1,0.36,1) forwards;">
+          <!-- الحذاء SVG -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="130" height="100" viewBox="0 0 130 100" style="filter:drop-shadow(0 0 16px rgba(255,200,0,1)) drop-shadow(0 0 8px rgba(255,100,0,0.9));">
+            <!-- جسم الحذاء -->
+            <path d="M10 70 Q15 45 35 38 L75 34 Q95 32 110 40 L120 55 Q125 65 118 72 L110 78 L20 78 Z"
+              fill="url(#shoeGrad)" stroke="#8B4513" stroke-width="2"/>
+            <!-- لسان الحذاء -->
+            <path d="M38 38 Q45 20 55 16 L72 16 Q78 18 75 34 Z"
+              fill="#cc4400" stroke="#8B2500" stroke-width="1.5"/>
+            <!-- الرقبة -->
+            <ellipse cx="56" cy="16" rx="18" ry="6" fill="#cc4400" stroke="#8B2500" stroke-width="1.5"/>
+            <!-- نعل الحذاء -->
+            <path d="M10 78 Q15 88 30 90 L110 90 Q122 88 118 78 Z"
+              fill="#222" stroke="#111" stroke-width="1"/>
+            <!-- خطوط النعل -->
+            <line x1="25" y1="84" x2="115" y2="84" stroke="#444" stroke-width="1.5" stroke-dasharray="8,5"/>
+            <!-- أربطة -->
+            <line x1="45" y1="30" x2="68" y2="30" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="43" y1="37" x2="71" y2="37" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <!-- شعلة تأثير الضربة -->
+            <defs>
+              <linearGradient id="shoeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ff6600"/>
+                <stop offset="50%" stop-color="#cc3300"/>
+                <stop offset="100%" stop-color="#8B2000"/>
+              </linearGradient>
+            </defs>
+            <!-- لمعة -->
+            <ellipse cx="80" cy="50" rx="18" ry="9" fill="rgba(255,255,255,0.12)" transform="rotate(-20,80,50)"/>
+          </svg>
+          <!-- شرارات -->
+          <div style="position:absolute;top:30%;left:65%;width:12px;height:12px;animation:kickSpark1 0.5s 0.25s ease forwards;opacity:0;">
+            <svg viewBox="0 0 12 12"><polygon points="6,0 7.5,4.5 12,6 7.5,7.5 6,12 4.5,7.5 0,6 4.5,4.5" fill="#ffdd00"/></svg>
+          </div>
+          <div style="position:absolute;top:20%;left:60%;width:10px;height:10px;animation:kickSpark2 0.5s 0.28s ease forwards;opacity:0;">
+            <svg viewBox="0 0 10 10"><polygon points="5,0 6.5,3.5 10,5 6.5,6.5 5,10 3.5,6.5 0,5 3.5,3.5" fill="#ff8800"/></svg>
+          </div>
+          <div style="position:absolute;top:45%;left:70%;width:8px;height:8px;animation:kickSpark3 0.55s 0.22s ease forwards;opacity:0;">
+            <svg viewBox="0 0 8 8"><polygon points="4,0 5,3 8,4 5,5 4,8 3,5 0,4 3,3" fill="#ffcc00"/></svg>
+          </div>
+          <!-- دائرة تأثير الضربة -->
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;border:3px solid rgba(255,200,0,0.9);animation:kickImpact 0.5s 0.2s ease forwards;opacity:0;"></div>
+        </div>
       `;
       document.getElementById('app').appendChild(div);
       this._el = div;
     },
     play(onDone) {
       this._el.style.display = 'flex';
-      // إعادة تشغيل الأنيميشن
       const inner = document.getElementById('kick-inner');
       inner.style.animation = 'none';
       void inner.offsetWidth;
-      inner.style.animation = 'kickAnim 0.7s ease-out forwards';
+      inner.style.animation = 'kickSvgAnim 0.75s cubic-bezier(0.22,1,0.36,1) forwards';
+      // إعادة شرارات
+      inner.querySelectorAll('div').forEach(d => {
+        d.style.animation = 'none';
+        void d.offsetWidth;
+        d.style.animation = d.style.animation;
+      });
       setTimeout(() => {
         this._el.style.display = 'none';
         if (onDone) onDone();
-      }, 750);
+      }, 800);
     }
   };
 
@@ -1111,6 +1378,7 @@
       this._lastHitTime = 0;
 
       this._buildHealthBar();
+      this._buildGrid();
 
       this._weam1 = null;
       this._weam2 = null;
@@ -1240,14 +1508,16 @@
     }
 
     _respawn() {
-      const spawnPos = this.maze.getRandomFreeCell(this.camera.position, 14);
-      this.group.position.copy(spawnPos);
+      // ابحث عن خلية فارغة بعيدة عن اللاعب (لا تكون داخل جدار)
+      const spawnPos = this.maze.getRandomFreeCell(this.camera.position, 18);
+      if (spawnPos) {
+        this.group.position.copy(spawnPos);
+      }
       this._hp     = this.MAX_HP;
       this._isDead = false;
       this._isCatching = false;
       this.group.visible = true;
       this._drawHpBar(this._hp);
-      // يبدأ بالمطاردة فوراً بعد الـ Respawn
       this._currentEnemySpeed = this._baseEnemySpeed;
     }
 
@@ -1316,18 +1586,55 @@
         () => {
           GameState.hearts = Math.max(0, GameState.hearts - 1);
           renderHearts();
+          // هدية الخريطة إذا وصل للقلب الأخير
+          if (GameState.hearts <= 1 && !GameState.hasMap) {
+            GameState.hasMap = true;
+            showMapGift();
+          }
           GameState.captureActive = false;
           this._isCatching = false;
+          // حفظ موضع اللاعب الحالي للرجوع إليه إذا لم يكن game over
+          const savedPos = {
+            x: this.camera.position.x,
+            y: this.camera.position.y,
+            z: this.camera.position.z
+          };
+          const savedKeys = GameState.keysCollected;
+
           // إظهار شاشة الهزيمة
           DefeatOverlay.show(() => {
-            // عند الضغط على "الاستمرار"
             GameSettings.paused = false;
             if (GameState.hearts <= 0) {
-              // إعادة تشغيل كاملة
+              // ===== إعادة كاملة من البداية: مفاتيح + خريطة تتصفر =====
               GameState.hearts = GameState.maxHearts;
+              GameState.keysCollected = 0;
+              GameState.hasMap = false;
+              GameState.mapRevealed = false;
               renderHearts();
+              // إعادة المفاتيح للظهور
+              for (const k of this.maze.keyObjects) {
+                k.userData.collected = false;
+                k.visible = true;
+              }
+              // إعادة خريطة الآيتم
+              if (this.maze.mapItemObj) {
+                this.maze.mapItemObj.userData.collected = false;
+                this.maze.mapItemObj.visible = true;
+              }
+              // إخفاء زر الخريطة
+              document.getElementById('map-btn').style.display = 'none';
+              document.getElementById('map-btn').style.color = '#aaa';
+              document.getElementById('keys-hud').textContent = '🗝️ 0/3';
+              // إرجاع اللاعب لنقطة البداية
+              this.camera.position.copy(this.maze.spawn);
+              this.camera.position.y = 1.62;
+            } else {
+              // ===== خسارة قلب واحد: ابدأ من نفس النقطة مع المفاتيح =====
+              GameState.keysCollected = savedKeys;
+              document.getElementById('keys-hud').textContent = `🗝️ ${GameState.keysCollected}/3`;
+              this.camera.position.set(savedPos.x, savedPos.y, savedPos.z);
             }
-            // إعادة ظهور العدو
+            // إعادة ظهور العدو بعيداً
             this._die();
           });
         }
@@ -1352,6 +1659,79 @@
       });
     }
 
+    // ============================================================
+    // BFS Pathfinding — يجد أقرب مسار عبر الجدران
+    // ============================================================
+    _buildGrid() {
+      const rows = mapLayout.length;
+      const cols = mapLayout[0].length;
+      this._gridRows = rows;
+      this._gridCols = cols;
+      this._grid = [];
+      for (let z = 0; z < rows; z++) {
+        this._grid[z] = [];
+        for (let x = 0; x < cols; x++) {
+          this._grid[z][x] = mapLayout[z][x] !== '#';
+        }
+      }
+    }
+
+    _worldToGrid(wx, wz) {
+      const cs = this.maze.cellSize;
+      return {
+        gx: Math.round(wx / cs),
+        gz: Math.round(wz / cs)
+      };
+    }
+
+    _bfs(startGx, startGz, goalGx, goalGz) {
+      const rows = this._gridRows;
+      const cols = this._gridCols;
+      if (!this._grid) return null;
+      const visited = new Uint8Array(rows * cols);
+      const parent  = new Int32Array(rows * cols).fill(-1);
+      const queue   = [];
+      const idx = (gx, gz) => gz * cols + gx;
+
+      const clampGx = gx => Math.max(0, Math.min(cols - 1, gx));
+      const clampGz = gz => Math.max(0, Math.min(rows - 1, gz));
+      startGx = clampGx(startGx); startGz = clampGz(startGz);
+      goalGx  = clampGx(goalGx);  goalGz  = clampGz(goalGz);
+
+      if (!this._grid[startGz][startGx]) return null;
+      visited[idx(startGx, startGz)] = 1;
+      queue.push([startGx, startGz]);
+      let head = 0;
+
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+      while (head < queue.length) {
+        const [cx, cz] = queue[head++];
+        if (cx === goalGx && cz === goalGz) {
+          // تتبع المسار
+          let path = [];
+          let cur = idx(cx, cz);
+          while (cur !== -1) {
+            const pgz = Math.floor(cur / cols);
+            const pgx = cur % cols;
+            path.unshift({ gx: pgx, gz: pgz });
+            cur = parent[cur];
+          }
+          return path;
+        }
+        for (const [dx, dz] of dirs) {
+          const nx = cx + dx, nz = cz + dz;
+          if (nx < 0 || nx >= cols || nz < 0 || nz >= rows) continue;
+          if (!this._grid[nz][nx]) continue;
+          const ni = idx(nx, nz);
+          if (visited[ni]) continue;
+          visited[ni] = 1;
+          parent[ni] = idx(cx, cz);
+          queue.push([nx, nz]);
+        }
+      }
+      return null; // لا مسار
+    }
+
     update(delta, playerPos, playerRef) {
       // --- boost اللاعب countdown ---
       if (this._playerBoosted) {
@@ -1359,7 +1739,6 @@
         if (this._playerBoostTimer <= 0) {
           this._playerBoosted    = false;
           this._playerBoostTimer = 0;
-          // إعادة سرعة العدو للأسرع من اللاعب
           this._currentEnemySpeed = this._baseEnemySpeed;
         }
       }
@@ -1389,28 +1768,51 @@
         this._applyHitFlash(activeModel, this._hitFlash);
       }
 
-      // --- مطاردة مستمرة نحو اللاعب دائماً (ذكاء اصطناعي) ---
+      // --- BFS Pathfinding: تحديث كل 0.35 ثانية ---
+      this._pathTimer = (this._pathTimer || 0) + delta;
+      if (this._pathTimer >= 0.35 || !this._currentPath) {
+        this._pathTimer = 0;
+        const eg = this._worldToGrid(this.group.position.x, this.group.position.z);
+        const pg = this._worldToGrid(playerPos.x, playerPos.z);
+        this._currentPath = this._bfs(eg.gx, eg.gz, pg.gx, pg.gz);
+        this._pathStep = 1; // تخطى الخلية الأولى (الحالية)
+      }
+
       const ex = this.group.position.x;
       const ez = this.group.position.z;
-      const px = playerPos.x;
-      const pz = playerPos.z;
-      const dist = Math.hypot(px - ex, pz - ez);
+      const dist = Math.hypot(playerPos.x - ex, playerPos.z - ez);
 
-      // يطارد دائماً بغض النظر عن المسافة
-      if (dist > this.ATTACK_RANGE) {
-        const nx = (px - ex) / dist;
-        const nz = (pz - ez) / dist;
+      if (dist <= this.ATTACK_RANGE) {
+        this._catchPlayer(playerRef);
+        return;
+      }
+
+      // --- تحرك نحو الخطوة التالية في المسار ---
+      let targetX = playerPos.x;
+      let targetZ = playerPos.z;
+
+      if (this._currentPath && this._pathStep < this._currentPath.length) {
+        const step = this._currentPath[this._pathStep];
+        const stepWX = step.gx * this.maze.cellSize;
+        const stepWZ = step.gz * this.maze.cellSize;
+        const distToStep = Math.hypot(stepWX - ex, stepWZ - ez);
+        if (distToStep < this.maze.cellSize * 0.6) this._pathStep++;
+        targetX = stepWX;
+        targetZ = stepWZ;
+      }
+
+      const dx = targetX - ex;
+      const dz = targetZ - ez;
+      const dLen = Math.hypot(dx, dz);
+      if (dLen > 0.01) {
+        const nx = dx / dLen;
+        const nz = dz / dLen;
         const spd = this._currentEnemySpeed;
         const newX = ex + nx * spd * delta;
         const newZ = ez + nz * spd * delta;
-
         if (!this._enemyCollides(newX, ez)) this.group.position.x = newX;
         if (!this._enemyCollides(this.group.position.x, newZ)) this.group.position.z = newZ;
-
-        this.group.rotation.y = Math.atan2(px - this.group.position.x, pz - this.group.position.z);
-      } else {
-        // قريب جداً — القبض على اللاعب
-        this._catchPlayer(playerRef);
+        this.group.rotation.y = Math.atan2(playerPos.x - this.group.position.x, playerPos.z - this.group.position.z);
       }
 
       if (AudioSys.ctx) {
@@ -1441,6 +1843,174 @@
     document.getElementById('sound-toggle').addEventListener('change', e => GameSettings.sound = e.target.checked);
     document.getElementById('music-toggle').addEventListener('change', e => GameSettings.music = e.target.checked);
     return { toggleSettings, fpsPill, promptUI, btnInteractMob, btnFireMob, instPanel };
+  }
+
+  // ============================================================
+  //  MAP OVERLAY SYSTEM  (خريطة تعرض الماب كله)
+  // ============================================================
+  const MapOverlay = {
+    _el: null,
+    _canvas: null,
+    init(maze, enemy, camera) {
+      this._maze = maze;
+      this._enemy = enemy;
+      this._camera = camera;
+
+      const div = document.createElement('div');
+      div.id = 'map-overlay';
+      div.style.cssText = `
+        position:fixed;inset:0;z-index:8000;display:none;
+        background:rgba(0,0,0,0.88);align-items:center;justify-content:center;
+        flex-direction:column;
+      `;
+      const canvas = document.createElement('canvas');
+      canvas.width = 520; canvas.height = 520;
+      canvas.style.cssText = `border:2px solid #ffd700;border-radius:12px;max-width:92vw;max-height:80vh;`;
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '✕ إغلاق [M]';
+      closeBtn.style.cssText = `margin-top:14px;padding:10px 28px;background:#ffd700;color:#000;font-weight:900;border:none;border-radius:8px;font-size:15px;cursor:pointer;`;
+      closeBtn.addEventListener('click', () => this.hide());
+      div.appendChild(canvas);
+      div.appendChild(closeBtn);
+      document.getElementById('app').appendChild(div);
+      this._el = div;
+      this._canvas = canvas;
+    },
+    show() {
+      if (!GameState.hasMap) return;
+      GameSettings.paused = true;
+      document.exitPointerLock?.();
+      this._draw();
+      this._el.style.display = 'flex';
+    },
+    hide() {
+      this._el.style.display = 'none';
+      GameSettings.paused = false;
+    },
+    _draw() {
+      const ctx = this._canvas.getContext('2d');
+      const rows = mapLayout.length;
+      const cols = mapLayout[0].length;
+      const cw = this._canvas.width;
+      const ch = this._canvas.height;
+      const cellW = cw / cols;
+      const cellH = ch / rows;
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.fillStyle = '#0d1b0d';
+      ctx.fillRect(0, 0, cw, ch);
+
+      for (let z = 0; z < rows; z++) {
+        for (let x = 0; x < cols; x++) {
+          const t = mapLayout[z][x];
+          const px = x * cellW;
+          const pz = z * cellH;
+          if (t === '#') {
+            ctx.fillStyle = '#4a5a3a';
+            ctx.fillRect(px + 1, pz + 1, cellW - 2, cellH - 2);
+          } else {
+            ctx.fillStyle = '#1a2e1a';
+            ctx.fillRect(px, pz, cellW, cellH);
+          }
+        }
+      }
+
+      const cs = this._maze.cellSize;
+      // رسم المفاتيح
+      for (const k of this._maze.keyObjects) {
+        if (k.userData.collected) continue;
+        const gx = k.position.x / cs;
+        const gz = k.position.z / cs;
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.arc(gx * cellW + cellW / 2, gz * cellH + cellH / 2, Math.max(cellW * 0.35, 4), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.font = `bold ${Math.max(cellH * 0.6, 8)}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('K', gx * cellW + cellW / 2, gz * cellH + cellH / 2);
+      }
+
+      // رسم الخريطة (آيتم) إذا لم تُجمع
+      if (this._maze.mapItemObj && !this._maze.mapItemObj.userData.collected) {
+        const mp = this._maze.mapItemObj.position;
+        const gx = mp.x / cs; const gz = mp.z / cs;
+        ctx.fillStyle = '#00ccff';
+        ctx.fillRect(gx * cellW + 1, gz * cellH + 1, cellW - 2, cellH - 2);
+        ctx.fillStyle = '#000';
+        ctx.font = `bold ${Math.max(cellH * 0.55, 7)}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('M', gx * cellW + cellW / 2, gz * cellH + cellH / 2);
+      }
+
+      // رسم الباب
+      const dgx = this._maze.doorPos.x / cs;
+      const dgz = this._maze.doorPos.z / cs;
+      ctx.fillStyle = '#ff6600';
+      ctx.fillRect(dgx * cellW + 1, dgz * cellH + 1, cellW - 2, cellH - 2);
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.max(cellH * 0.55, 7)}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('D', dgx * cellW + cellW / 2, dgz * cellH + cellH / 2);
+
+      // رسم العدو
+      const egx = this._enemy.group.position.x / cs;
+      const egz = this._enemy.group.position.z / cs;
+      ctx.fillStyle = '#ff0000';
+      ctx.beginPath();
+      ctx.arc(egx * cellW + cellW / 2, egz * cellH + cellH / 2, Math.max(cellW * 0.4, 5), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.max(cellH * 0.6, 8)}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('👹', egx * cellW + cellW / 2, egz * cellH + cellH / 2);
+
+      // رسم اللاعب
+      const pgx = this._camera.position.x / cs;
+      const pgz = this._camera.position.z / cs;
+      ctx.fillStyle = '#00ff88';
+      ctx.beginPath();
+      ctx.arc(pgx * cellW + cellW / 2, pgz * cellH + cellH / 2, Math.max(cellW * 0.45, 6), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.font = `bold ${Math.max(cellH * 0.65, 9)}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('★', pgx * cellW + cellW / 2, pgz * cellH + cellH / 2);
+
+      // مفتاح الخريطة
+      ctx.font = '11px sans-serif'; ctx.fillStyle = '#aaa'; ctx.textAlign = 'left';
+      const legend = [
+        ['★', '#00ff88', ' أنت'],
+        ['👹', '#ff0000', ' العدو'],
+        ['K', '#ffd700', ' مفتاح'],
+        ['D', '#ff6600', ' الباب'],
+      ];
+      legend.forEach(([sym, col, label], i) => {
+        ctx.fillStyle = col;
+        ctx.fillText(sym + label, 6, 16 + i * 18);
+      });
+    }
+  };
+
+  function showMapGift() {
+    document.getElementById('map-btn').style.display = 'block';
+    document.getElementById('map-btn').style.color = '#ffd700';
+    // رسالة هدية
+    const div = document.createElement('div');
+    div.style.cssText = `
+      position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+      z-index:8500;background:rgba(0,0,0,0.92);border:2px solid #ffd700;
+      border-radius:16px;padding:24px 30px;text-align:center;
+      font-family:system-ui;direction:rtl;animation:mapGiftAnim 0.4s ease;
+    `;
+    div.innerHTML = `
+      <style>@keyframes mapGiftAnim{from{opacity:0;transform:translate(-50%,-60%)}to{opacity:1;transform:translate(-50%,-50%)}}</style>
+      <div style="font-size:48px;margin-bottom:8px;">🗺️🎁</div>
+      <div style="font-size:18px;font-weight:700;color:#ffd700;margin-bottom:8px;">هدية! حصلت على الخريطة</div>
+      <div style="font-size:13px;color:#ccc;margin-bottom:16px;">عندك قلب واحد فقط!<br>الخريطة تُريك كل شيء. اضغط [M] لفتحها.</div>
+      <button style="padding:10px 24px;background:#ffd700;color:#000;font-weight:900;border:none;border-radius:8px;cursor:pointer;" onclick="this.parentElement.remove()">حسناً!</button>
+    `;
+    document.getElementById('app').appendChild(div);
+    setTimeout(() => div.remove(), 5000);
   }
 
   // ============================================================
@@ -1511,6 +2081,19 @@
   // ---- إنشاء العدو ----
   const enemy = new EnemySystem(scene, maze, camera);
 
+  // ---- تهيئة نظام الخريطة ----
+  MapOverlay.init(maze, enemy, camera);
+  document.getElementById('map-btn').addEventListener('click', () => {
+    if (MapOverlay._el.style.display !== 'none') MapOverlay.hide();
+    else MapOverlay.show();
+  });
+  window.addEventListener('keydown', e => {
+    if (e.code === 'KeyM' && GameState.hasMap) {
+      if (MapOverlay._el.style.display !== 'none') MapOverlay.hide();
+      else MapOverlay.show();
+    }
+  });
+
   const fpsPill        = document.getElementById('fps-pill');
   const promptUI       = document.getElementById('interaction-prompt');
   const btnInteractMob = document.getElementById('btn-interact');
@@ -1518,7 +2101,7 @@
   const instPanel      = document.getElementById('instructions-panel');
 
   btnFireMob.style.display = 'flex';
-  instPanel.innerHTML = "السلاح جاهز.<br>ابحث عن الباب السري للخروج!";
+  instPanel.innerHTML = "اجمع 3 مفاتيح🗝️<br>لفتح الباب والهروب!";
 
   // ============================================================
   //  SHOOTING RAY-CAST  (تفحص هل الطلقة أصابت العدو)
@@ -1583,14 +2166,66 @@
       player.update(delta, time);
       enemy.update(delta, camera.position, player);
       checkShotHit(time);
+
+      // --- جمع المفاتيح ---
+      for (const keyObj of maze.keyObjects) {
+        if (keyObj.userData.collected) continue;
+        const d = Math.hypot(camera.position.x - keyObj.position.x, camera.position.z - keyObj.position.z);
+        if (d < 1.8) {
+          keyObj.userData.collected = true;
+          keyObj.visible = false;
+          GameState.keysCollected++;
+          document.getElementById('keys-hud').textContent = `🗝️ ${GameState.keysCollected}/3`;
+          instPanel.innerHTML = GameState.keysCollected < 3
+            ? `جمعت مفتاح! (${GameState.keysCollected}/3)<br>ابحث عن بقية المفاتيح!`
+            : `جمعت كل المفاتيح!<br>اذهب للباب الآن!`;
+          // هدية: إذا كان عنده قلب واحد وجمع مفتاحاً → أعطه خريطة
+          if (GameState.hearts <= 1 && !GameState.hasMap) {
+            GameState.hasMap = true;
+            showMapGift();
+          }
+        }
+        // تدوير المفتاح
+        keyObj.rotation.y += delta * 2;
+        keyObj.position.y = Math.sin(time * 0.002) * 0.1 + 0.3;
+      }
+
+      // --- جمع الخريطة (آيتم على الأرض) ---
+      if (maze.mapItemObj && !maze.mapItemObj.userData.collected) {
+        const mp = maze.mapItemObj.position;
+        const md = Math.hypot(camera.position.x - mp.x, camera.position.z - mp.z);
+        if (md < 1.8) {
+          maze.mapItemObj.userData.collected = true;
+          maze.mapItemObj.visible = false;
+          GameState.hasMap = true;
+          document.getElementById('map-btn').style.display = 'block';
+          document.getElementById('map-btn').style.color = '#ffd700';
+          instPanel.innerHTML = 'وجدت خريطة!<br>اضغط [M] لفتحها!';
+        }
+        // تعويم ورقة الخريطة
+        if (maze.mapItemObj.visible) {
+          maze.mapItemObj.rotation.y += delta;
+          maze.mapItemObj.position.y = Math.sin(time * 0.0015) * 0.08 + 0.05;
+        }
+      }
+
+      if (GameState.hasMap) {
+        document.getElementById('map-btn').style.display = 'block';
+      }
     }
 
     // --- تفاعل الباب ---
     const distToDoor = camera.position.distanceTo(maze.doorPos);
     if (distToDoor < 2.5 && !maze.doorOpened) {
-      promptUI.style.display = 'block';
-      btnInteractMob.style.display = 'flex';
-      if (player.interactPressed || player.keys['KeyE']) {
+      if (GameState.keysCollected >= GameState.totalKeys) {
+        promptUI.textContent = 'اضغط [E] لفتح الباب 🚪';
+        promptUI.style.display = 'block';
+        btnInteractMob.style.display = 'flex';
+      } else {
+        promptUI.textContent = `تحتاج ${GameState.totalKeys - GameState.keysCollected} مفتاح إضافي!`;
+        promptUI.style.display = 'block';
+      }
+      if ((player.interactPressed || player.keys['KeyE']) && GameState.keysCollected >= GameState.totalKeys) {
         maze.openDoor();
         npcGroup.visible = true;
         instPanel.innerHTML = "لقد وجدت المخرج!<br>اذهب وتحدث مع الناجي.";
