@@ -154,6 +154,14 @@
       </div>
       <div id="instructions-panel">السلاح جاهز.<br>ابحث عن الباب السري للخروج!</div>
       <div id="interaction-prompt">اضغط [E] لفتح الباب</div>
+      <div id="hearts-hud" style="
+        position:absolute;top:44px;right:8px;
+        display:flex;gap:4px;direction:ltr;
+        background:rgba(13,17,16,0.85);
+        border:1px solid rgba(255,255,255,0.1);
+        border-radius:999px;padding:4px 10px;
+        pointer-events:none;
+      ">❤️❤️❤️</div>
     </div>
     <div id="crosshair"></div>
     <div id="mobile-ui">
@@ -440,9 +448,9 @@
       const fogFar = _isMobile ? 45 : 75;
       this.scene.fog = new THREE.Fog('#1a2213', 14, fogFar);
 
-      this.scene.add(new THREE.AmbientLight('#eae2b2', 0.75));
-      this.scene.add(new THREE.HemisphereLight('#f2efc0', '#5f6632', 0.45));
-      const sun = new THREE.DirectionalLight('#f0edcc', 0.34);
+      this.scene.add(new THREE.AmbientLight('#ffffff', 1.4));
+      this.scene.add(new THREE.HemisphereLight('#f2efc0', '#5f6632', 0.6));
+      const sun = new THREE.DirectionalLight('#f0edcc', 0.5);
       sun.position.set(20, 26, 12);
       this.scene.add(sun);
 
@@ -734,12 +742,328 @@
   }
 
   // ============================================================
-  //  ENEMY SYSTEM
-  //  يحمّل مجسمي WEAM1.glb و WEAM2.glb من مجلد models/
-  //  يبدّل بينهما كل 0.2 ثانية
-  //  شريط دم فوق الرأس
-  //  منع اختراق الجدران
-  //  إعادة ظهور بعد الموت في مكان بعيد
+  //  QUESTIONS BANK  — 15 سؤال (إنجليزي + حساب)
+  // ============================================================
+  const QUESTIONS_BANK = [
+    { q: "ما معنى كلمة (Milk) بالعربي؟",       choices: ["حليب", "ماء", "عصير"],    answer: 0 },
+    { q: "ما معنى كلمة (Dog) بالعربي؟",        choices: ["قطة", "كلب", "حصان"],    answer: 1 },
+    { q: "ما معنى كلمة (Book) بالعربي؟",       choices: ["قلم", "مفتاح", "كتاب"],  answer: 2 },
+    { q: "ما معنى كلمة (Sun) بالعربي؟",        choices: ["شمس", "قمر", "نجم"],     answer: 0 },
+    { q: "ما معنى كلمة (House) بالعربي؟",      choices: ["سيارة", "بيت", "شجرة"],  answer: 1 },
+    { q: "ما معنى كلمة (Water) بالعربي؟",      choices: ["نار", "تراب", "ماء"],    answer: 2 },
+    { q: "ما معنى كلمة (Cat) بالعربي؟",        choices: ["قطة", "أسد", "ذئب"],     answer: 0 },
+    { q: "ما معنى كلمة (Apple) بالعربي؟",      choices: ["برتقال", "تفاحة", "موز"], answer: 1 },
+    { q: "ما معنى كلمة (School) بالعربي؟",     choices: ["مستشفى", "سوق", "مدرسة"],answer: 2 },
+    { q: "ما معنى كلمة (Door) بالعربي؟",       choices: ["باب", "نافذة", "سقف"],   answer: 0 },
+    { q: "كم ناتج: 15 + 10 ؟",                choices: ["20", "25", "30"],         answer: 1 },
+    { q: "كم ناتج: 14 + 16 ؟",                choices: ["28", "30", "32"],         answer: 1 },
+    { q: "كم ناتج: 20 + 5 ؟",                 choices: ["22", "25", "28"],         answer: 1 },
+    { q: "كم ناتج: 12 + 13 ؟",                choices: ["23", "25", "27"],         answer: 2 },
+    { q: "كم ناتج: 18 + 7 ؟",                 choices: ["23", "25", "27"],         answer: 1 },
+  ];
+
+  // ============================================================
+  //  HEARTS & GAME STATE
+  // ============================================================
+  const GameState = {
+    hearts: 3,
+    maxHearts: 3,
+    questionActive: false,
+    gameOver: false,
+    captureActive: false,
+  };
+
+  // ---- رسم القلوب في الـ HUD ----
+  function renderHearts() {
+    let el = document.getElementById('hearts-hud');
+    if (!el) return;
+    el.innerHTML = '';
+    for (let i = 0; i < GameState.maxHearts; i++) {
+      const h = document.createElement('span');
+      h.textContent = i < GameState.hearts ? '❤️' : '🖤';
+      h.style.fontSize = '22px';
+      el.appendChild(h);
+    }
+  }
+
+  // ============================================================
+  //  QUESTION OVERLAY
+  // ============================================================
+  const QuestionSystem = {
+    _overlay: null,
+    _timer: 5,
+    _timerInterval: null,
+    _currentQ: null,
+    _onCorrect: null,
+    _onWrong: null,
+
+    init() {
+      // إنشاء الـ overlay
+      const div = document.createElement('div');
+      div.id = 'question-overlay';
+      div.style.cssText = `
+        position:fixed;inset:0;z-index:9000;display:none;
+        background:rgba(0,0,0,0.0);
+        align-items:center;justify-content:center;
+        font-family:system-ui,sans-serif;direction:rtl;
+      `;
+      div.innerHTML = `
+        <div id="q-card" style="
+          background:linear-gradient(135deg,#0d1b0d 0%,#162416 60%,#0d1b0d 100%);
+          border:2px solid #4caf50;border-radius:20px;
+          width:min(420px,92vw);padding:28px 24px 22px;
+          box-shadow:0 0 60px rgba(76,175,80,0.35),0 0 120px rgba(0,0,0,0.8);
+          position:relative;overflow:hidden;
+        ">
+          <!-- جزيئات خلفية -->
+          <div style="position:absolute;inset:0;overflow:hidden;border-radius:20px;pointer-events:none;">
+            <div id="q-particle1" style="position:absolute;width:60px;height:60px;border-radius:50%;background:rgba(76,175,80,0.08);top:-20px;left:10px;"></div>
+            <div id="q-particle2" style="position:absolute;width:40px;height:40px;border-radius:50%;background:rgba(255,193,7,0.06);bottom:10px;right:20px;"></div>
+          </div>
+
+          <!-- شريط الوقت -->
+          <div style="margin-bottom:6px;text-align:center;">
+            <div id="q-timer-num" style="
+              font-size:28px;font-weight:900;color:#ff5252;
+              text-shadow:0 0 12px rgba(255,82,82,0.8);
+              letter-spacing:2px;
+            ">5</div>
+          </div>
+          <div style="
+            width:100%;height:10px;background:rgba(255,255,255,0.1);
+            border-radius:6px;overflow:hidden;margin-bottom:20px;
+          ">
+            <div id="q-timer-bar" style="
+              width:100%;height:100%;
+              background:linear-gradient(90deg,#ff1744,#ff5252);
+              border-radius:6px;
+              transition:width 0.25s linear;
+              box-shadow:0 0 8px rgba(255,23,68,0.7);
+            "></div>
+          </div>
+
+          <!-- السؤال -->
+          <div id="q-text" style="
+            font-size:19px;font-weight:700;color:#e8f5e9;
+            text-align:center;margin-bottom:22px;line-height:1.5;
+            text-shadow:0 1px 4px rgba(0,0,0,0.5);
+          "></div>
+
+          <!-- الخيارات -->
+          <div id="q-choices" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+      `;
+      document.getElementById('app').appendChild(div);
+      this._overlay = div;
+    },
+
+    show(onCorrect, onWrong) {
+      GameState.questionActive = true;
+      this._onCorrect = onCorrect;
+      this._onWrong   = onWrong;
+      this._timer = 5;
+
+      // اختيار سؤال عشوائي
+      this._currentQ = QUESTIONS_BANK[Math.floor(Math.random() * QUESTIONS_BANK.length)];
+
+      // ملء السؤال
+      document.getElementById('q-text').textContent = this._currentQ.q;
+
+      // ملء الخيارات
+      const choicesDiv = document.getElementById('q-choices');
+      choicesDiv.innerHTML = '';
+      const colors = ['#1565c0','#6a1b9a','#00695c'];
+      this._currentQ.choices.forEach((ch, i) => {
+        const btn = document.createElement('button');
+        btn.textContent = ch;
+        btn.style.cssText = `
+          padding:13px 18px;border-radius:12px;border:none;cursor:pointer;
+          font-size:16px;font-weight:700;color:#fff;
+          background:linear-gradient(135deg,${colors[i]},${colors[i]}cc);
+          box-shadow:0 4px 15px rgba(0,0,0,0.3);
+          transition:transform 0.1s,box-shadow 0.1s,filter 0.1s;
+          direction:rtl;text-align:center;
+        `;
+        btn.addEventListener('mouseenter', () => { btn.style.transform='scale(1.03)'; btn.style.filter='brightness(1.2)'; });
+        btn.addEventListener('mouseleave', () => { btn.style.transform='scale(1)'; btn.style.filter='brightness(1)'; });
+        btn.addEventListener('click', () => this._answer(i));
+        // للموبايل
+        btn.addEventListener('touchend', e => { e.preventDefault(); this._answer(i); });
+        choicesDiv.appendChild(btn);
+      });
+
+      // شريط الوقت
+      document.getElementById('q-timer-bar').style.width = '100%';
+      document.getElementById('q-timer-num').textContent = '5';
+
+      this._overlay.style.display = 'flex';
+
+      clearInterval(this._timerInterval);
+      let elapsed = 0;
+      this._timerInterval = setInterval(() => {
+        elapsed += 0.25;
+        const remaining = Math.max(0, 5 - elapsed);
+        const pct = (remaining / 5) * 100;
+        document.getElementById('q-timer-bar').style.width = pct + '%';
+        document.getElementById('q-timer-num').textContent = Math.ceil(remaining);
+        if (remaining <= 0) {
+          clearInterval(this._timerInterval);
+          this._fail();
+        }
+      }, 250);
+    },
+
+    _answer(idx) {
+      if (!GameState.questionActive) return;
+      clearInterval(this._timerInterval);
+      if (idx === this._currentQ.answer) {
+        this._overlay.style.display = 'none';
+        GameState.questionActive = false;
+        if (this._onCorrect) this._onCorrect();
+      } else {
+        this._fail();
+      }
+    },
+
+    _fail() {
+      clearInterval(this._timerInterval);
+      this._overlay.style.display = 'none';
+      GameState.questionActive = false;
+      if (this._onWrong) this._onWrong();
+    },
+
+    hide() {
+      clearInterval(this._timerInterval);
+      this._overlay.style.display = 'none';
+      GameState.questionActive = false;
+    }
+  };
+
+  // ============================================================
+  //  DEATH / DEFEAT OVERLAY
+  // ============================================================
+  const DefeatOverlay = {
+    _el: null,
+    init() {
+      const div = document.createElement('div');
+      div.id = 'defeat-overlay';
+      div.style.cssText = `
+        position:fixed;inset:0;z-index:9500;display:none;
+        background:rgba(180,0,0,0.92);
+        align-items:center;justify-content:center;
+        flex-direction:column;font-family:system-ui,sans-serif;direction:rtl;
+        animation:defeatFadeIn 0.4s ease;
+      `;
+      div.innerHTML = `
+        <style>
+          @keyframes defeatFadeIn { from{opacity:0;transform:scale(1.08)} to{opacity:1;transform:scale(1)} }
+          @keyframes heartPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+        </style>
+        <div style="text-align:center;padding:30px 24px;">
+          <div style="font-size:54px;font-weight:900;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,0.6);margin-bottom:8px;">
+            قُضي عليك
+          </div>
+          <div style="font-size:20px;color:#ffb300;font-weight:700;margin-bottom:28px;
+            text-shadow:0 2px 8px rgba(0,0,0,0.5);">
+            لقد قام نيجابور بجبرك
+          </div>
+          <div id="defeat-hearts" style="font-size:30px;margin-bottom:20px;animation:heartPulse 1s ease infinite;"></div>
+          <button id="defeat-btn" style="
+            padding:14px 40px;font-size:18px;font-weight:800;
+            background:linear-gradient(135deg,#ff6f00,#ff8f00);color:#fff;
+            border:none;border-radius:14px;cursor:pointer;
+            box-shadow:0 6px 24px rgba(0,0,0,0.5);
+            transition:transform 0.1s,filter 0.1s;letter-spacing:1px;
+          ">الاستمرار</button>
+        </div>
+      `;
+      document.getElementById('app').appendChild(div);
+      this._el = div;
+      document.getElementById('defeat-btn').addEventListener('click', () => this.hide());
+      document.getElementById('defeat-btn').addEventListener('touchend', e => { e.preventDefault(); this.hide(); });
+    },
+    show(onContinue) {
+      this._onContinue = onContinue;
+      GameSettings.paused = true;
+      document.exitPointerLock?.();
+      // تحديث القلوب المعروضة
+      const hDiv = document.getElementById('defeat-hearts');
+      let hStr = '';
+      for (let i = 0; i < GameState.maxHearts; i++) {
+        hStr += i < GameState.hearts ? '❤️' : '🖤';
+      }
+      hDiv.textContent = hStr;
+      // تعديل زر استمرار / بداية من جديد
+      const btn = document.getElementById('defeat-btn');
+      if (GameState.hearts <= 0) {
+        btn.textContent = 'البدء من البداية';
+        btn.style.background = 'linear-gradient(135deg,#b71c1c,#d32f2f)';
+      } else {
+        btn.textContent = 'الاستمرار';
+        btn.style.background = 'linear-gradient(135deg,#ff6f00,#ff8f00)';
+      }
+      this._el.style.display = 'flex';
+    },
+    hide() {
+      this._el.style.display = 'none';
+      GameSettings.paused = false;
+      if (this._onContinue) this._onContinue();
+    }
+  };
+
+  // ============================================================
+  //  SHOE KICK ANIMATION  (ضرب بالحذاء)
+  // ============================================================
+  const KickAnimation = {
+    _el: null,
+    init() {
+      const div = document.createElement('div');
+      div.id = 'kick-anim';
+      div.style.cssText = `
+        position:fixed;inset:0;z-index:8500;display:none;
+        align-items:center;justify-content:center;
+        pointer-events:none;
+      `;
+      div.innerHTML = `
+        <div id="kick-inner" style="
+          font-size:80px;
+          animation:kickAnim 0.7s ease-out forwards;
+          filter:drop-shadow(0 0 20px rgba(255,200,0,0.8));
+        ">👟💥</div>
+        <style>
+          @keyframes kickAnim {
+            0%   { transform:translateX(-120px) rotate(-30deg) scale(0.5); opacity:0; }
+            40%  { transform:translateX(20px) rotate(10deg) scale(1.3); opacity:1; }
+            70%  { transform:translateX(-10px) rotate(-5deg) scale(1.1); opacity:1; }
+            100% { transform:translateX(0) rotate(0deg) scale(1); opacity:0; }
+          }
+        </style>
+      `;
+      document.getElementById('app').appendChild(div);
+      this._el = div;
+    },
+    play(onDone) {
+      this._el.style.display = 'flex';
+      // إعادة تشغيل الأنيميشن
+      const inner = document.getElementById('kick-inner');
+      inner.style.animation = 'none';
+      void inner.offsetWidth;
+      inner.style.animation = 'kickAnim 0.7s ease-out forwards';
+      setTimeout(() => {
+        this._el.style.display = 'none';
+        if (onDone) onDone();
+      }, 750);
+    }
+  };
+
+  // ============================================================
+  //  ENEMY SYSTEM  (مُحدَّث بالكامل)
+  //  - ذكاء اصطناعي حقيقي: مطاردة مستمرة
+  //  - سرعة العدو أسرع بـ 0.1 من اللاعب
+  //  - عند الإصابة: اللاعب أسرع بـ 0.2 لمدة 5 ثوانٍ
+  //  - نظام القبض والأسئلة والقلوب
+  //  - Respawn سريع جداً ويبدأ بالمطاردة فوراً
+  //  - منع إطلاق النار من خلف الجدران (Raycast check)
   // ============================================================
   class EnemySystem {
     constructor(scene, maze, camera) {
@@ -750,41 +1074,53 @@
       // --- ثوابت العدو ---
       this.MAX_HP          = 100;
       this.DAMAGE_PER_SHOT = 10;
-      this.MOVE_SPEED      = 2.2;           // سرعة حركة العدو
-      this.ENEMY_RADIUS    = 0.45;          // نصف قطر التصادم
-      this.DETECT_RANGE    = 18;            // مسافة اكتشاف اللاعب
-      this.ATTACK_RANGE    = 1.8;           // مسافة الهجوم
-      this.SWAP_INTERVAL   = 0.2;           // ثواني بين كل تبديل للمجسم
-      this.RESPAWN_DELAY   = 3.0;           // ثواني قبل إعادة الظهور
-      this.ENEMY_SCALE     = 2;           // مقياس المجسم - يُضبط تلقائياً
+      this.BASE_PLAYER_SPEED = 7.0;   // سرعة اللاعب الأساسية
+      this.ENEMY_RADIUS    = 0.45;
+      this.DETECT_RANGE    = 60;      // يطارد دائماً (نطاق كبير جداً)
+      this.ATTACK_RANGE    = 1.6;     // مسافة القبض
+      this.SWAP_INTERVAL   = 0.2;
+      this.RESPAWN_DELAY   = 1.0;     // Respawn سريع جداً
+      this.ENEMY_SCALE     = 2;
+
+      // سرعة العدو = سرعة اللاعب + 0.1
+      this._baseEnemySpeed  = this.BASE_PLAYER_SPEED + 0.1;
+      this._currentEnemySpeed = this._baseEnemySpeed;
+
+      // مؤقت boost اللاعب عند الإصابة
+      this._playerBoostTimer = 0;
+      this._playerBoosted    = false;
 
       // مؤقتات
       this._swapTimer    = 0;
       this._respawnTimer = 0;
       this._isDead       = false;
       this._hp           = this.MAX_HP;
+      this._hitFlash     = 0;
+      this._activeModel  = 1;
+
+      // حالة القبض
+      this._isCatching   = false;
 
       // مجموعة العدو الرئيسية
       this.group = new THREE.Group();
       this.scene.add(this.group);
 
-      // مؤقت آخر إطلاق لمنع الطلقات المتكررة لحظياً
       this._lastHitTime = 0;
 
-      // إنشاء شريط الدم قبل تحميل المجسمات
+      // راي كاستر لفحص الجدران (لا يستخدم mesh - يستخدم colliders)
+      this._lastHitTime = 0;
+
       this._buildHealthBar();
 
-      // تحميل المجسمات
       this._weam1 = null;
       this._weam2 = null;
       this._loadModels();
 
-      // إظهار العدو في موضع A من الخريطة
       const spawnCell = this._findInitialSpawn();
       this.group.position.copy(spawnCell);
     }
 
-    // إيجاد خلية A كموضع أول للعدو
+    // تسجيل كل الـ meshes في المشهد للكشف عن الجدران - غير مستخدم (colliders تكفل ذلك)
     _findInitialSpawn() {
       for (let z = 0; z < mapLayout.length; z++) {
         for (let x = 0; x < mapLayout[z].length; x++) {
@@ -793,69 +1129,54 @@
           }
         }
       }
-      // fallback
       return new THREE.Vector3(10, 0, 30);
     }
 
-    // ---- تحميل WEAM1.glb و WEAM2.glb ----
     _loadModels() {
       const loader = new THREE.GLTFLoader();
-
       const loadOne = (path, onDone) => {
-        loader.load(
-          path,
-          gltf => {
-            const model = gltf.scene;
-            model.traverse((child) => {
-              if (child.isMesh && child.material) {
-                child.material.side = THREE.DoubleSide;
-                child.material.needsUpdate = true;
+        loader.load(path, gltf => {
+          const model = gltf.scene;
+          model.traverse((child) => {
+            if (child.isMesh && child.material) {
+              child.material = child.material.clone();
+              child.material.side = THREE.DoubleSide;
+              if (child.material.map) {
+                child.material.emissive = new THREE.Color(0x888888);
+                child.material.emissiveMap = child.material.map;
+                child.material.emissiveIntensity = 0.85;
+              } else if (child.material.color) {
+                child.material.emissive = child.material.color.clone().multiplyScalar(0.7);
+                child.material.emissiveIntensity = 1.0;
               }
-            });
-            // ضبط الحجم تلقائياً ليناسب ارتفاع إنسان (~1.8 وحدة)
-            const box  = new THREE.Box3().setFromObject(model);
-            const size = box.getSize(new THREE.Vector3());
-            const h    = size.y || 1;
-            const s    = (1.8 / h) * this.ENEMY_SCALE;
-            model.scale.setScalar(s);
-            // توسيط المجسم أفقياً
-            const center = box.getCenter(new THREE.Vector3());
-            model.position.set(-center.x * s, -box.min.y * s, -center.z * s);
-            model.visible = false;
-            this.group.add(model);
-            onDone(model);
-          },
-          undefined,
-          err => {
-            console.warn(`[EnemySystem] فشل تحميل ${path}، يُستخدم بدل مؤقت`);
-            // بدل مؤقت (مربع بشري) لو فشل التحميل
-            const fallback = this._buildFallback();
-            fallback.visible = false;
-            this.group.add(fallback);
-            onDone(fallback);
-          }
-        );
+              child.userData.origEmissive = child.material.emissive.clone();
+              child.userData.origEmissiveIntensity = child.material.emissiveIntensity;
+              child.material.needsUpdate = true;
+            }
+          });
+          const box  = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          const h    = size.y || 1;
+          const s    = (1.8 / h) * this.ENEMY_SCALE;
+          model.scale.setScalar(s);
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.set(-center.x * s, -box.min.y * s, -center.z * s);
+          model.visible = false;
+          this.group.add(model);
+          onDone(model);
+        }, undefined, () => {
+          const fallback = this._buildFallback();
+          fallback.visible = false;
+          this.group.add(fallback);
+          onDone(fallback);
+        });
       };
-
-      loadOne('models/WEAM1.glb', m => {
-        this._weam1 = m;
-        this._weam1.visible = true;   // المجسم الأول يبدأ ظاهراً
-        this._checkBothLoaded();
-      });
-      loadOne('models/WEAM2.glb', m => {
-        this._weam2 = m;
-        this._checkBothLoaded();
-      });
+      loadOne('models/WEAM1.glb', m => { this._weam1 = m; this._weam1.visible = true; this._checkBothLoaded(); });
+      loadOne('models/WEAM2.glb', m => { this._weam2 = m; this._checkBothLoaded(); });
     }
 
-    _checkBothLoaded() {
-      if (this._weam1 && this._weam2) {
-        // بدء التبديل
-        this._activeModel = 1;
-      }
-    }
+    _checkBothLoaded() { if (this._weam1 && this._weam2) this._activeModel = 1; }
 
-    // بدل مؤقت بشري من مربعات لو لم يوجد الملف
     _buildFallback() {
       const g    = new THREE.Group();
       const skin = new THREE.MeshStandardMaterial({ color: '#c98b62', roughness: 0.6 });
@@ -868,7 +1189,6 @@
       return g;
     }
 
-    // ---- شريط الدم (Canvas Sprite) ----
     _buildHealthBar() {
       this._hpCanvas  = document.createElement('canvas');
       this._hpCanvas.width  = 128;
@@ -877,7 +1197,7 @@
       const mat = new THREE.SpriteMaterial({ map: this._hpTexture, depthTest: false });
       this._hpSprite = new THREE.Sprite(mat);
       this._hpSprite.scale.set(1.4, 0.22, 1);
-      this._hpSprite.position.y = 2.35; // فوق الرأس مباشرة
+      this._hpSprite.position.y = 2.35;
       this.group.add(this._hpSprite);
       this._drawHpBar(this._hp);
     }
@@ -886,28 +1206,21 @@
       const ctx = this._hpCanvas.getContext('2d');
       const w = this._hpCanvas.width, h = this._hpCanvas.height;
       ctx.clearRect(0, 0, w, h);
-      // خلفية
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
       if (ctx.roundRect) { ctx.roundRect(0, 0, w, h, 4); ctx.fill(); }
       else ctx.fillRect(0, 0, w, h);
-      // شريط أحمر/أخضر
       const ratio = clamp(hp / this.MAX_HP, 0, 1);
       const r = Math.round(255 * (1 - ratio));
       const g = Math.round(220 * ratio);
       ctx.fillStyle = `rgb(${r},${g},30)`;
       const pad = 3;
       ctx.fillRect(pad, pad, (w - pad * 2) * ratio, h - pad * 2);
-      // نص
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(`HP ${hp}`, w / 2, h / 2);
-      // تحديث الـ texture مرة واحدة فقط عند التغيير
       this._hpTexture.needsUpdate = true;
     }
 
-    // ---- منع العدو من اختراق الجدران ----
     _enemyCollides(x, z) {
       const r = this.ENEMY_RADIUS;
       for (const c of this.maze.colliders) {
@@ -916,47 +1229,150 @@
       return false;
     }
 
-    // ---- الموت ----
     _die() {
       this._isDead = true;
       this._hp = 0;
       this._drawHpBar(0);
       this.group.visible = false;
       this._respawnTimer = 0;
+      this._isCatching = false;
       EnemyAudio.stop();
     }
 
-    // ---- إعادة الظهور ----
     _respawn() {
-      const spawnPos = this.maze.getRandomFreeCell(this.camera.position, 12);
+      const spawnPos = this.maze.getRandomFreeCell(this.camera.position, 14);
       this.group.position.copy(spawnPos);
       this._hp     = this.MAX_HP;
       this._isDead = false;
+      this._isCatching = false;
       this.group.visible = true;
       this._drawHpBar(this._hp);
+      // يبدأ بالمطاردة فوراً بعد الـ Respawn
+      this._currentEnemySpeed = this._baseEnemySpeed;
     }
 
-    // ---- تسجيل إصابة (تُستدعى من خارج) ----
+    // ---- فحص هل هناك جدار بين اللاعب والعدو (باستخدام colliders) ----
+    _hasWallBetween(playerPos) {
+      const ex = this.group.position.x;
+      const ez = this.group.position.z;
+      const px = playerPos.x;
+      const pz = playerPos.z;
+      const steps = 20;
+      for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        const cx = px + (ex - px) * t;
+        const cz = pz + (ez - pz) * t;
+        const r = 0.15;
+        for (const c of this.maze.colliders) {
+          if (cx + r > c.min.x && cx - r < c.max.x && cz + r > c.min.z && cz - r < c.max.z) {
+            return true; // يوجد جدار في المسار
+          }
+        }
+      }
+      return false;
+    }
+
     hit() {
       if (this._isDead) return;
       const now = performance.now();
-      if (now - this._lastHitTime < 120) return; // منع تكرار السريع
+      if (now - this._lastHitTime < 120) return;
       this._lastHitTime = now;
+
+      // فحص الجدار: لا تُسجل إصابة لو يوجد جدار بينهما
+      if (this._hasWallBetween(this.camera.position)) return;
+
       this._hp = Math.max(0, this._hp - this.DAMAGE_PER_SHOT);
       this._drawHpBar(this._hp);
+      this._hitFlash = 1.0;
+
+      // boost اللاعب: يصبح أسرع بـ 0.2 لمدة 5 ثوانٍ
+      this._playerBoostTimer  = 5.0;
+      this._playerBoosted     = true;
+      this._currentEnemySpeed = this.BASE_PLAYER_SPEED - 0.2; // العدو أبطأ من اللاعب المقوّى
+
       if (this._hp <= 0) this._die();
     }
 
-    // ---- UPDATE كل frame ----
-    update(delta, playerPos) {
-      // --- انتظار إعادة الظهور ---
+    // ---- القبض على اللاعب ----
+    _catchPlayer(playerRef) {
+      if (this._isCatching || GameState.questionActive || GameState.captureActive) return;
+      this._isCatching = true;
+      GameState.captureActive = true;
+      GameSettings.paused = true;
+      document.exitPointerLock?.();
+
+      // إظهار سؤال
+      QuestionSystem.show(
+        // إجابة صحيحة: ضربة بالحذاء ثم موت العدو
+        () => {
+          KickAnimation.play(() => {
+            GameState.captureActive = false;
+            this._isCatching = false;
+            GameSettings.paused = false;
+            this._die(); // العدو يموت ويعمل Respawn بدون إنقاص القلوب
+          });
+        },
+        // إجابة خاطئة أو انتهاء الوقت: ينقص قلب
+        () => {
+          GameState.hearts = Math.max(0, GameState.hearts - 1);
+          renderHearts();
+          GameState.captureActive = false;
+          this._isCatching = false;
+          // إظهار شاشة الهزيمة
+          DefeatOverlay.show(() => {
+            // عند الضغط على "الاستمرار"
+            GameSettings.paused = false;
+            if (GameState.hearts <= 0) {
+              // إعادة تشغيل كاملة
+              GameState.hearts = GameState.maxHearts;
+              renderHearts();
+            }
+            // إعادة ظهور العدو
+            this._die();
+          });
+        }
+      );
+    }
+
+    _applyHitFlash(model, flash) {
+      if (!model) return;
+      model.traverse(child => {
+        if (child.isMesh && child.material) {
+          if (flash > 0) {
+            child.material.emissive.setRGB(flash, flash * 0.3, flash * 0.3);
+            child.material.emissiveIntensity = 1.0 + flash * 2.0;
+          } else {
+            const orig = child.userData.origEmissive;
+            if (orig) {
+              child.material.emissive.copy(orig);
+              child.material.emissiveIntensity = child.userData.origEmissiveIntensity || 0.85;
+            }
+          }
+        }
+      });
+    }
+
+    update(delta, playerPos, playerRef) {
+      // --- boost اللاعب countdown ---
+      if (this._playerBoosted) {
+        this._playerBoostTimer -= delta;
+        if (this._playerBoostTimer <= 0) {
+          this._playerBoosted    = false;
+          this._playerBoostTimer = 0;
+          // إعادة سرعة العدو للأسرع من اللاعب
+          this._currentEnemySpeed = this._baseEnemySpeed;
+        }
+      }
+
       if (this._isDead) {
         this._respawnTimer += delta;
         if (this._respawnTimer >= this.RESPAWN_DELAY) this._respawn();
         return;
       }
 
-      // --- تبديل المجسمين كل 0.2 ثانية ---
+      if (this._isCatching || GameState.questionActive || GameState.captureActive) return;
+
+      // --- تبديل المجسمين ---
       if (this._weam1 && this._weam2) {
         this._swapTimer += delta;
         if (this._swapTimer >= this.SWAP_INTERVAL) {
@@ -967,34 +1383,40 @@
         }
       }
 
-      // --- حركة العدو نحو اللاعب ---
+      if (this._hitFlash > 0) {
+        this._hitFlash = Math.max(0, this._hitFlash - delta * 8);
+        const activeModel = this._activeModel === 1 ? this._weam1 : this._weam2;
+        this._applyHitFlash(activeModel, this._hitFlash);
+      }
+
+      // --- مطاردة مستمرة نحو اللاعب دائماً (ذكاء اصطناعي) ---
       const ex = this.group.position.x;
       const ez = this.group.position.z;
       const px = playerPos.x;
       const pz = playerPos.z;
       const dist = Math.hypot(px - ex, pz - ez);
 
-      if (dist < this.DETECT_RANGE && dist > this.ATTACK_RANGE) {
+      // يطارد دائماً بغض النظر عن المسافة
+      if (dist > this.ATTACK_RANGE) {
         const nx = (px - ex) / dist;
         const nz = (pz - ez) / dist;
-        const newX = ex + nx * this.MOVE_SPEED * delta;
-        const newZ = ez + nz * this.MOVE_SPEED * delta;
+        const spd = this._currentEnemySpeed;
+        const newX = ex + nx * spd * delta;
+        const newZ = ez + nz * spd * delta;
 
-        // منع اختراق الجدران: محور X ثم Z مستقلان
         if (!this._enemyCollides(newX, ez)) this.group.position.x = newX;
         if (!this._enemyCollides(this.group.position.x, newZ)) this.group.position.z = newZ;
 
-        // توجيه نحو اللاعب
         this.group.rotation.y = Math.atan2(px - this.group.position.x, pz - this.group.position.z);
+      } else {
+        // قريب جداً — القبض على اللاعب
+        this._catchPlayer(playerRef);
       }
 
-      // --- ضبط الصوت بناءً على المسافة ---
       if (AudioSys.ctx) {
         EnemyAudio.init(AudioSys.ctx);
         EnemyAudio.updateVolume(dist, 30);
       }
-
-      // --- شريط الدم يواجه الكاميرا دائماً (Sprite يتكفل بذلك تلقائياً) ---
     }
   }
 
@@ -1038,17 +1460,16 @@
     alpha: false
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  // موبايل/APK: pixelRatio=1 دائماً — الشاشات 2x-3x تضاعف عبء الـ GPU بلا فائدة مرئية
+  // موبايل: 1.5 يعطي وضوحاً جيداً بدون استنزاف GPU كامل (2x-3x)
   const _isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-  renderer.setPixelRatio(_isMobile ? 1 : Math.min(window.devicePixelRatio, 1.5));
-  // تحسين إضافي: تعطيل الفرز التلقائي للأجسام — المتاهة ثابتة ولا تحتاجه
+  renderer.setPixelRatio(_isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
   renderer.sortObjects = false;
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(_isMobile ? 1 : Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(_isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
   });
 
   const maze = new SchoolMaze(scene);
@@ -1071,6 +1492,12 @@
   camera.position.copy(maze.spawn);
   camera.position.y = 1.62;
   scene.add(camera);
+
+  // تهيئة أنظمة الأسئلة والقلوب والهزيمة
+  QuestionSystem.init();
+  DefeatOverlay.init();
+  KickAnimation.init();
+  renderHearts();
 
   // NPC عند الباب
   const npcGroup = new THREE.Group();
@@ -1154,7 +1581,7 @@
 
     if (!GameSettings.paused) {
       player.update(delta, time);
-      enemy.update(delta, camera.position);
+      enemy.update(delta, camera.position, player);
       checkShotHit(time);
     }
 
