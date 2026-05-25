@@ -151,6 +151,12 @@
         <button class="pill button-pill" id="settings-pill">الإعدادات ⚙️</button>
         <div class="pill" id="quality-pill">Medium</div>
         <div class="pill" id="fps-pill">FPS: 0</div>
+        <div class="pill" id="ping-pill" style="gap:4px;min-width:72px;">
+          <svg id="ping-wifi" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2.5" stroke-linecap="round">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="#4caf50" stroke="none"/>
+          </svg>
+          <span id="ping-val">---</span>ms
+        </div>
       </div>
       <div id="instructions-panel">اجمع 3 مفاتيح 🗝️<br>لفتح الباب والهروب!</div>
       <div id="interaction-prompt">اضغط [E] لفتح الباب</div>
@@ -371,48 +377,94 @@
   }
 
   // ============================================================
-  //  MAP LAYOUT  (داخل HTML)
+  //  MAP LAYOUT  — مولّد خريطة متاهة مضمونة الاتصال الكامل
+  //  خوارزمية: Recursive Backtracker (DFS) على شبكة 18×18 خلية
+  //  النتيجة: كل خلية فارغة متصلة بكل خلية أخرى، مستحيل يحبس الوحش
   // ============================================================
-  // خريطة مفتوحة بالكامل — كل منطقة متصلة بممرات متعددة لا توجد أماكن مغلقة
-  const mapLayout = [
-    "#####################################",
-    "#S...........#......#...............#",
-    "#.#########..#..##..#..########.##..#",
-    "#.#.......#..#..#...#..#......#.#...#",
-    "#.#..###..#..####...####..##..#.#.###",
-    "#....#.#.........#.......#.#...#....#",
-    "#.##.#.#.######..#..####.#.#.###.#..#",
-    "#.#..#...#....#..#..#....#...#...#..#",
-    "#.#..###.#.##.#..#..#..###.###.###..#",
-    "#....#...#.#.....#.....#...#........#",
-    "#.####...#.#.#####..####...#.#####..#",
-    "#.....#..#.#.......#.....#.#.#....#..#",
-    "#..##.#..#.#########.###.#...#.##.#..#",
-    "#..#..#..#...#.......#...#####.#..#..#",
-    "#..#..####.#.#.#######.#.......#..####",
-    "#..#........#.#.......#.#.##...#.....#",
-    "#..########.#.#.#####.#.#.#.####.##..#",
-    "#..#........#.......#.#.#.#.#.....#..#",
-    "#..#.######.#.#####.#.#.#.#.#..##.#..#",
-    "#...#.....#.#.#.....#...#.#.#..#..#..#",
-    "#.###.###.#.#.#.#######.#.#.####.#.###",
-    "#.....#.#...#...#.......#.#......#....#",
-    "#.#####.#####...#..#####.##########...#",
-    "#.#.....#.....A.#..#.....#............#",
-    "#.#.#####.#####..#.#.###.#..#######.##",
-    "#...#.....#.......#.#...#...#.......#.#",
-    "#.###.###.########.###.###..#.#####.#.#",
-    "#.....#.#..........#.......#.#.....#..#",
-    "#.#####.#.##########.#####.#.#.###.#..#",
-    "#.......#.#.........#.#....#.#.#...####",
-    "#.#######.#.#######.#.#.####.#.#.#....#",
-    "#.........#.#.......#.#.#....#.#.#.##.#",
-    "#.#########.#.#######.#.#.####.#.#.#..#",
-    "#.#.........#.#.......#.#.#....#.#.#..#",
-    "#.#.#########.#.#######.#.#.####.#.####",
-    "#...#.........#.........#...#.........D#",
-    "#####################################",
-  ];
+  function generateMaze() {
+    const COLS = 18, ROWS = 18;
+    // شبكة الخلايا (visited)
+    const visited = Array.from({length: ROWS}, () => new Array(COLS).fill(false));
+    // جدران بين الخلايا: H[r][c] = جدار أفقي بين (r,c) و (r,c+1)، V[r][c] = عمودي بين (r,c) و (r+1,c)
+    const wallH = Array.from({length: ROWS},   () => new Array(COLS - 1).fill(true));
+    const wallV = Array.from({length: ROWS - 1},() => new Array(COLS).fill(true));
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function carve(r, c) {
+      visited[r][c] = true;
+      const dirs = shuffle([[0,1],[0,-1],[1,0],[-1,0]]);
+      for (const [dr, dc] of dirs) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+        if (visited[nr][nc]) continue;
+        // أزل الجدار بين (r,c) و (nr,nc)
+        if (dr === 0) wallH[r][Math.min(c, nc)] = false;   // أفقي
+        else          wallV[Math.min(r, nr)][c] = false;   // عمودي
+        carve(nr, nc);
+      }
+    }
+    carve(0, 0);
+
+    // أضف ممرات إضافية عشوائية (30% من الجدران المتبقية) لتكثيف التشابك
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS - 1; c++) {
+        if (wallH[r][c] && Math.random() < 0.28) wallH[r][c] = false;
+      }
+    }
+    for (let r = 0; r < ROWS - 1; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (wallV[r][c] && Math.random() < 0.28) wallV[r][c] = false;
+      }
+    }
+
+    // تحويل للنص — كل خلية 2×2 حروف + جدار بينها
+    // حجم الـ grid النصية: (ROWS*2+1) × (COLS*2+1)
+    const GR = ROWS * 2 + 1, GC = COLS * 2 + 1;
+    const grid = Array.from({length: GR}, () => new Array(GC).fill('#'));
+
+    // افتح الخلايا والممرات
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        grid[r*2+1][c*2+1] = '.'; // الخلية نفسها مفتوحة
+        if (c < COLS-1 && !wallH[r][c])   grid[r*2+1][c*2+2] = '.'; // يمين
+        if (r < ROWS-1 && !wallV[r][c])   grid[r*2+2][c*2+1] = '.'; // أسفل
+      }
+    }
+
+    // ضع S (نقطة البداية) في الزاوية العلوية اليسرى
+    grid[1][1] = 'S';
+
+    // ضع D (الباب) في الزاوية السفلية اليمنى
+    grid[GR-2][GC-2] = 'D';
+
+    // ضع A (نقطة ظهور الوحش) في منتصف الخريطة تقريباً
+    const ar = Math.floor(ROWS * 0.55) * 2 + 1;
+    const ac = Math.floor(COLS * 0.55) * 2 + 1;
+    if (grid[ar][ac] === '.') grid[ar][ac] = 'A';
+    else {
+      // fallback: ابحث عن أقرب خلية مفتوحة
+      outer: for (let dr = 0; dr < ROWS; dr++) {
+        for (let dc = 0; dc < COLS; dc++) {
+          const tr = ar + dr*2, tc = ac + dc*2;
+          if (tr > 0 && tr < GR-1 && tc > 0 && tc < GC-1 && grid[tr][tc] === '.') {
+            grid[tr][tc] = 'A'; break outer;
+          }
+        }
+      }
+    }
+
+    // تحويل إلى مصفوفة نصوص
+    return grid.map(row => row.join(''));
+  }
+
+  const mapLayout = generateMaze();
 
   // ============================================================
   //  SCHOOL MAZE  (داخل HTML)
@@ -495,25 +547,30 @@
       this._placeMapItem();
 
       this.scene.background = new THREE.Color('#1a2213');
-      const fogFar = _isMobile ? 45 : 75;
-      this.scene.fog = new THREE.Fog('#1a2213', 14, fogFar);
+      const fogFar = _isMobile ? 38 : 70;
+      this.scene.fog = new THREE.Fog('#1a2213', 10, fogFar);
 
-      this.scene.add(new THREE.AmbientLight('#ffffff', 1.4));
-      this.scene.add(new THREE.HemisphereLight('#f2efc0', '#5f6632', 0.6));
-      const sun = new THREE.DirectionalLight('#f0edcc', 0.5);
-      sun.position.set(20, 26, 12);
-      this.scene.add(sun);
+      // على الموبايل: ضوء ambient قوي فقط بدون PointLights إضافية
+      this.scene.add(new THREE.AmbientLight('#ffffff', _isMobile ? 2.2 : 1.4));
+      if (!_isMobile) {
+        this.scene.add(new THREE.HemisphereLight('#f2efc0', '#5f6632', 0.6));
+        const sun = new THREE.DirectionalLight('#f0edcc', 0.5);
+        sun.position.set(20, 26, 12);
+        this.scene.add(sun);
+      }
 
+      // PointLights: 2 على موبايل، 4 على PC
       const lightPositions = [];
       for (let z = 1; z < rows - 1; z++) {
         for (let x = 1; x < cols - 1; x++) {
           if (mapLayout[z][x] !== '#') lightPositions.push([x * this.cellSize, z * this.cellSize]);
         }
       }
-      const step = Math.floor(lightPositions.length / 3);
-      for (let i = 0; i < 3; i++) {
+      const numLights = _isMobile ? 2 : 4;
+      const step = Math.floor(lightPositions.length / numLights);
+      for (let i = 0; i < numLights; i++) {
         const [lx, lz] = lightPositions[Math.min(i * step + step / 2 | 0, lightPositions.length - 1)];
-        const l = new THREE.PointLight('#ffe8a0', 1.8, 22, 2.0);
+        const l = new THREE.PointLight('#ffe8a0', _isMobile ? 1.2 : 1.8, _isMobile ? 30 : 22, 2.0);
         l.position.set(lx, 2.5, lz);
         this.scene.add(l);
       }
@@ -2027,19 +2084,22 @@
     preserveDrawingBuffer: false,
     stencil: false,
     depth: true,
-    alpha: false
+    alpha: false,
+    logarithmicDepthBuffer: false
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  // موبايل: 1.5 يعطي وضوحاً جيداً بدون استنزاف GPU كامل (2x-3x)
-  const _isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-  renderer.setPixelRatio(_isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = false;
+  renderer.physicallyCorrectLights = false;
+  renderer.outputEncoding = THREE.LinearEncoding;
+  const _isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+  // على موبايل: ابدأ بـ 1.0 ثم يرفع PerfOptimizer تدريجياً لو الأداء طيب
+  renderer.setPixelRatio(_isMobile ? 1.0 : Math.min(window.devicePixelRatio, 2));
   renderer.sortObjects = false;
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(_isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
   });
 
   const maze = new SchoolMaze(scene);
@@ -2127,19 +2187,135 @@
   }
 
   // ============================================================
-  //  MAIN LOOP
+  //  PING SYSTEM  — يقيس زمن الاستجابة للسيرفر
   // ============================================================
+  const PingSystem = {
+    _val: null,
+    _interval: null,
+    _wifiEl: null,
+    _valEl: null,
+
+    init() {
+      this._wifiEl = document.getElementById('ping-wifi');
+      this._valEl  = document.getElementById('ping-val');
+      // قياس كل 3 ثوان
+      this._measure();
+      this._interval = setInterval(() => this._measure(), 3000);
+    },
+
+    async _measure() {
+      try {
+        const t0 = performance.now();
+        // إرسال HEAD request للصفحة الحالية — أخف طلب ممكن
+        await fetch(location.href, { method: 'HEAD', cache: 'no-store',
+          signal: AbortSignal.timeout(4000) });
+        const ping = Math.round(performance.now() - t0);
+        this._update(ping);
+      } catch {
+        this._update(null);
+      }
+    },
+
+    _update(ping) {
+      this._val = ping;
+      const valEl  = this._valEl;
+      const wifiEl = this._wifiEl;
+      if (!valEl || !wifiEl) return;
+
+      if (ping === null || ping > 998) {
+        valEl.textContent  = '999+';
+        wifiEl.setAttribute('stroke', '#f44336');
+        // أيقونة WiFi حمراء مع X
+        wifiEl.innerHTML = `<path d="M5 12.55a11 11 0 0 1 14.08 0" opacity="0.3"/>
+          <path d="M1.42 9a16 16 0 0 1 21.16 0" opacity="0.3"/>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0" opacity="0.3"/>
+          <circle cx="12" cy="20" r="1" fill="#f44336" stroke="none"/>
+          <line x1="9" y1="9" x2="15" y2="15" stroke="#f44336" stroke-width="2.5"/>
+          <line x1="15" y1="9" x2="9" y2="15" stroke="#f44336" stroke-width="2.5"/>`;
+      } else if (ping > 150) {
+        // أصفر — متوسط
+        valEl.textContent = ping;
+        wifiEl.setAttribute('stroke', '#ffb300');
+        wifiEl.innerHTML = `<path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+          <path d="M1.42 9a16 16 0 0 1 21.16 0" opacity="0.35"/>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+          <circle cx="12" cy="20" r="1" fill="#ffb300" stroke="none"/>`;
+      } else {
+        // أخضر — جيد
+        valEl.textContent = ping;
+        wifiEl.setAttribute('stroke', '#4caf50');
+        wifiEl.innerHTML = `<path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+          <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+          <circle cx="12" cy="20" r="1" fill="#4caf50" stroke="none"/>`;
+      }
+
+      // لون النص
+      const colors = ping === null || ping > 998 ? '#f44336' : ping > 150 ? '#ffb300' : '#4caf50';
+      valEl.style.color = colors;
+      document.getElementById('ping-pill').style.borderColor =
+        ping === null || ping > 998 ? 'rgba(244,67,54,0.4)' : ping > 150 ? 'rgba(255,179,0,0.4)' : 'rgba(76,175,80,0.4)';
+    }
+  };
+
   // ============================================================
-  //  MAIN LOOP  — Frame-pacing fix for WebView/APK
-  //  المشكلة: على APK يتذبذب توقيت الفريمات مما يعطي إحساس بـ 15fps
-  //  الحل: متوسط متحرك لـ delta + تحديد حد أقصى + تجاهل الفريمات الطويلة
+  //  PERFORMANCE OPTIMIZER  — تحسين الأداء على APK / WebView
+  // ============================================================
+  const PerfOptimizer = {
+    // تقليل جودة الرندر ديناميكياً إذا انخفضت الفريمات
+    _fpsHistory: [],
+    _lowFpsCount: 0,
+    _currentDPR: null,
+
+    init(renderer, isMobile) {
+      this._renderer = renderer;
+      this._isMobile = isMobile;
+      this._currentDPR = renderer.getPixelRatio();
+      // تعطيل shadow maps تماماً — أكبر مصدر استنزاف
+      renderer.shadowMap.enabled = false;
+      // تحسينات إضافية للـ WebView
+      if (isMobile) {
+        renderer.powerPreference = 'high-performance';
+        // تقليل overdraw
+        renderer.sortObjects = true;
+      }
+    },
+
+    tick(fps) {
+      if (!this._isMobile) return;
+      this._fpsHistory.push(fps);
+      if (this._fpsHistory.length > 5) this._fpsHistory.shift();
+      const avg = this._fpsHistory.reduce((a, b) => a + b, 0) / this._fpsHistory.length;
+
+      if (avg < 28 && this._currentDPR > 1.0) {
+        // انخفض الأداء — قلل الـ DPR بخطوة صغيرة
+        this._currentDPR = Math.max(1.0, this._currentDPR - 0.1);
+        this._renderer.setPixelRatio(this._currentDPR);
+        this._lowFpsCount++;
+      } else if (avg > 50 && this._currentDPR < 1.5) {
+        // الأداء جيد — أعد رفع الجودة تدريجياً
+        this._currentDPR = Math.min(1.5, this._currentDPR + 0.05);
+        this._renderer.setPixelRatio(this._currentDPR);
+      }
+    }
+  };
+
+  PingSystem.init();
+  PerfOptimizer.init(renderer, _isMobile);
+
+  // ============================================================
+  //  MAIN LOOP — Frame-pacing fix for WebView/APK (محسّن)
   // ============================================================
   let lastTime = performance.now();
   let frames = 0, lastFps = lastTime;
+  let _currentFps = 30;
 
-  // --- Delta smoother: نأخذ متوسط آخر 4 قيم لمنع الاهتزاز ---
-  const _deltaHistory = [0.016, 0.016, 0.016, 0.016];
+  // Delta smoother: متوسط آخر 6 قيم لمنع الاهتزاز على WebView
+  const _deltaHistory = [0.016, 0.016, 0.016, 0.016, 0.016, 0.016];
   let _deltaIndex = 0;
+
+  // تخطي رندر كل فريم ثاني لو الأداء سيء جداً (أقل من 22fps)
+  let _skipFrame = false;
 
   function loop(time) {
     requestAnimationFrame(loop);
@@ -2147,20 +2323,33 @@
     const rawDelta = (time - lastTime) / 1000;
     lastTime = time;
 
-    // تجاهل الفريم إذا كان طويلاً جداً (مثلاً لو جاء من الخلفية)
-    if (rawDelta > 0.15) {
+    // تجاهل فريمات الخلفية الطويلة جداً
+    if (rawDelta > 0.18) {
       frames++;
-      if (time - lastFps >= 1000) { fpsPill.innerText = 'FPS: ' + frames; frames = 0; lastFps = time; }
+      if (time - lastFps >= 1000) {
+        _currentFps = frames;
+        fpsPill.innerText = 'FPS: ' + frames;
+        PerfOptimizer.tick(frames);
+        frames = 0; lastFps = time;
+      }
       return;
     }
 
-    // متوسط متحرك للـ delta يمنع التذبذب
+    // متوسط متحرك للـ delta
     _deltaHistory[_deltaIndex] = rawDelta;
-    _deltaIndex = (_deltaIndex + 1) % 4;
-    const delta = Math.min((_deltaHistory[0] + _deltaHistory[1] + _deltaHistory[2] + _deltaHistory[3]) / 4, 0.05);
+    _deltaIndex = (_deltaIndex + 1) % 6;
+    const delta = Math.min(
+      (_deltaHistory[0]+_deltaHistory[1]+_deltaHistory[2]+_deltaHistory[3]+_deltaHistory[4]+_deltaHistory[5]) / 6,
+      0.05
+    );
 
     frames++;
-    if (time - lastFps >= 1000) { fpsPill.innerText = 'FPS: ' + frames; frames = 0; lastFps = time; }
+    if (time - lastFps >= 1000) {
+      _currentFps = frames;
+      fpsPill.innerText = 'FPS: ' + frames;
+      PerfOptimizer.tick(frames);
+      frames = 0; lastFps = time;
+    }
 
     if (!GameSettings.paused) {
       player.update(delta, time);
@@ -2188,63 +2377,4 @@
         // تدوير المفتاح
         keyObj.rotation.y += delta * 2;
         keyObj.position.y = Math.sin(time * 0.002) * 0.1 + 0.3;
-      }
-
-      // --- جمع الخريطة (آيتم على الأرض) ---
-      if (maze.mapItemObj && !maze.mapItemObj.userData.collected) {
-        const mp = maze.mapItemObj.position;
-        const md = Math.hypot(camera.position.x - mp.x, camera.position.z - mp.z);
-        if (md < 1.8) {
-          maze.mapItemObj.userData.collected = true;
-          maze.mapItemObj.visible = false;
-          GameState.hasMap = true;
-          document.getElementById('map-btn').style.display = 'block';
-          document.getElementById('map-btn').style.color = '#ffd700';
-          instPanel.innerHTML = 'وجدت خريطة!<br>اضغط [M] لفتحها!';
-        }
-        // تعويم ورقة الخريطة
-        if (maze.mapItemObj.visible) {
-          maze.mapItemObj.rotation.y += delta;
-          maze.mapItemObj.position.y = Math.sin(time * 0.0015) * 0.08 + 0.05;
-        }
-      }
-
-      if (GameState.hasMap) {
-        document.getElementById('map-btn').style.display = 'block';
-      }
-    }
-
-    // --- تفاعل الباب ---
-    const distToDoor = camera.position.distanceTo(maze.doorPos);
-    if (distToDoor < 2.5 && !maze.doorOpened) {
-      if (GameState.keysCollected >= GameState.totalKeys) {
-        promptUI.textContent = 'اضغط [E] لفتح الباب 🚪';
-        promptUI.style.display = 'block';
-        btnInteractMob.style.display = 'flex';
-      } else {
-        promptUI.textContent = `تحتاج ${GameState.totalKeys - GameState.keysCollected} مفتاح إضافي!`;
-        promptUI.style.display = 'block';
-      }
-      if ((player.interactPressed || player.keys['KeyE']) && GameState.keysCollected >= GameState.totalKeys) {
-        maze.openDoor();
-        npcGroup.visible = true;
-        instPanel.innerHTML = "لقد وجدت المخرج!<br>اذهب وتحدث مع الناجي.";
-        player.interactPressed = false;
-        player.keys['KeyE'] = false;
-      }
-    } else {
-      promptUI.style.display = 'none';
-      if (!maze.doorOpened) btnInteractMob.style.display = 'none';
-    }
-
-    if (maze.doorOpened && camera.position.z < maze.doorPos.z - 2) {
-      instPanel.innerHTML = "السلام عليكم! لقد تمكنت من الخروج بسلام.";
-    }
-
-    renderer.render(scene, camera);
-  }
-
-  loop(performance.now());
-  </script>
-</body>
-</html>
+  
