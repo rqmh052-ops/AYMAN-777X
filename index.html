@@ -360,6 +360,51 @@
   };
 
   // ============================================================
+  //  MUSIC SYSTEM  (موسيقى الخلفية)
+  //  يحمّل ملف: audio/music.mp3
+  //  المستوى أقل من صوت العدو — مثل الألعاب الاحترافية
+  //  صوت العدو: 0.03 → 0.9 (حسب المسافة)
+  //  الموسيقى:  0.18 ثابت (أقل بكثير، خلفية فقط)
+  // ============================================================
+  const MusicSys = {
+    gainNode: null,
+    loaded: false,
+
+    init(audioCtx) {
+      if (this.loaded) return;
+      this.loaded = true;
+      this.gainNode = audioCtx.createGain();
+      // 0.18 = مستوى هادئ يناسب موسيقى الخلفية
+      // (صوت العدو يصل لـ 0.9 عند الاقتراب — الموسيقى دائماً أقل منه)
+      this.gainNode.gain.value = 0;
+      this.gainNode.connect(audioCtx.destination);
+
+      fetch('audio/music.mp3')
+        .then(r => r.arrayBuffer())
+        .then(ab => audioCtx.decodeAudioData(ab))
+        .then(decoded => {
+          const source = audioCtx.createBufferSource();
+          source.buffer = decoded;
+          source.loop = true;
+          source.connect(this.gainNode);
+          source.start(0);
+          // Fade in تدريجي عند البداية — يبدو احترافياً أكثر
+          this.gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+          this.gainNode.gain.linearRampToValueAtTime(0.18, audioCtx.currentTime + 3.0);
+        })
+        .catch(() => {
+          console.warn('[MusicSys] audio/music.mp3 not found');
+        });
+    },
+
+    setEnabled(enabled) {
+      if (!this.gainNode || !AudioSys.ctx) return;
+      const target = enabled ? 0.18 : 0;
+      this.gainNode.gain.setTargetAtTime(target, AudioSys.ctx.currentTime, 0.5);
+    }
+  };
+
+  // ============================================================
   //  AK47 PROCEDURAL GUN  (داخل HTML)
   // ============================================================
   function createAK47() {
@@ -1834,6 +1879,8 @@
       overlay.classList.toggle('hidden', !GameSettings.paused);
       if (!GameSettings.paused) {
         AudioSys.init();
+        // تشغيل الموسيقى عند بدء اللعبة
+        MusicSys.init(AudioSys.ctx);
         if (window.innerWidth > 768) document.body.requestPointerLock();
       } else {
         document.exitPointerLock?.();
@@ -1843,7 +1890,10 @@
     btnCloseSettings.addEventListener('click', toggleSettings);
     document.getElementById('sense-slider').addEventListener('input',  e => GameSettings.sensitivity = parseFloat(e.target.value));
     document.getElementById('sound-toggle').addEventListener('change', e => GameSettings.sound = e.target.checked);
-    document.getElementById('music-toggle').addEventListener('change', e => GameSettings.music = e.target.checked);
+    document.getElementById('music-toggle').addEventListener('change', e => {
+      GameSettings.music = e.target.checked;
+      MusicSys.setEnabled(e.target.checked);
+    });
     return { toggleSettings, fpsPill, promptUI, btnInteractMob, btnFireMob, instPanel };
   }
 
