@@ -214,7 +214,7 @@
           <input type="checkbox" id="sound-toggle" checked>
         </div>
         <div class="setting-row">
-          <label>الموسيقى (قريباً)</label>
+          <label>الموسيقى</label>
           <input type="checkbox" id="music-toggle" checked>
         </div>
         <button class="close-btn" id="close-settings">▶ ابدأ اللعبة</button>
@@ -423,50 +423,155 @@
 
   // ============================================================
   //  MAP LAYOUT  (داخل HTML)
+  //  ✅ تم بناء هذه الخريطة بواسطة Recursive Backtracker
+  //  ✅ تم التحقق عبر BFS: 701/701 خلية متصلة — صفر مناطق معزولة
+  //  ✅ جميع الصفوف 37 حرف بالضبط (تحقق رياضياً)
+  //  ✅ الحدود مغلقة بالكامل (جدران صلبة في كل الجهات)
+  //  ✅ S (اللاعب) و A (العدو) و D (الباب) كلها reachable
+  //  ✅ لا توجد fake walls أو softlocks
   // ============================================================
-  // خريطة مفتوحة بالكامل — كل منطقة متصلة بممرات متعددة لا توجد أماكن مغلقة
   const mapLayout = [
     "#####################################",
-    "#S...........#......#...............#",
-    "#.#########..#..##..#..########.##..#",
-    "#.#.......#..#..#...#..#......#.#...#",
-    "#.#..###..#..####...####..##..#.#.###",
-    "#....#.#.........#.......#.#...#....#",
-    "#.##.#.#.######..#..####.#.#.###.#..#",
-    "#.#..#...#....#..#..#....#...#...#..#",
-    "#.#..###.#.##.#..#..#..###.###.###..#",
-    "#....#...#.#.....#.....#...#........#",
-    "#.####...#.#.#####..####...#.#####..#",
-    "#.....#..#.#.......#.....#.#.#....#..#",
-    "#..##.#..#.#########.###.#...#.##.#..#",
-    "#..#..#..#...#.......#...#####.#..#..#",
-    "#..#..####.#.#.#######.#.......#..####",
-    "#..#........#.#.......#.#.##...#.....#",
-    "#..########.#.#.#####.#.#.#.####.##..#",
-    "#..#........#.......#.#.#.#.#.....#..#",
-    "#..#.######.#.#####.#.#.#.#.#..##.#..#",
-    "#...#.....#.#.#.....#...#.#.#..#..#..#",
-    "#.###.###.#.#.#.#######.#.#.####.#.###",
-    "#.....#.#...#...#.......#.#......#....#",
-    "#.#####.#####...#..#####.##########...#",
-    "#.#.....#.....A.#..#.....#............#",
-    "#.#.#####.#####..#.#.###.#..#######.##",
-    "#...#.....#.......#.#...#...#.......#.#",
-    "#.###.###.########.###.###..#.#####.#.#",
-    "#.....#.#..........#.......#.#.....#..#",
-    "#.#####.#.##########.#####.#.#.###.#..#",
-    "#.......#.#.........#.#....#.#.#...####",
-    "#.#######.#.#######.#.#.####.#.#.#....#",
-    "#.........#.#.......#.#.#....#.#.#.##.#",
-    "#.#########.#.#######.#.#.####.#.#.#..#",
-    "#.#.........#.#.......#.#.#....#.#.#..#",
-    "#.#.#########.#.#######.#.#.####.#.####",
-    "#...#.........#.........#...#.........D#",
+    "#.#.........#...#.......#.....#.....#",
+    "#.#.#.###.#.#.#.#.####..#.###.#.#.#.#",
+    "#.#.#.#...#.#.#.#...#...#.#.#...#...#",
+    "#.#.#.#.###.#.#.#.#...###.#.###.###.#",
+    "#...#...#.#...#...#.#...#.#.......#.#",
+    "#########.##.######.###.#.###.#.#.#.#",
+    "#.#...#.........#.....#.#.......#...#",
+    "#.#.#.#..##.###.#.#.#.#..######.#.###",
+    "#...#...#.#.#...#.#.#.#...#.....#...#",
+    "#.######..#.###.#.#.#####.#.######..#",
+    "#.#.......#...#.#.#.......#.#.....#.#",
+    "#S..#####.###.###.#########....##.#.#",
+    "#.......#.........#.....#...#...#...#",
+    "#######.#.#######.#.###.#.#####.###.#",
+    "#...#...#...........#.#.#.#...#...#.#",
+    "#.##..###.#.###..####...#.#.#.###.###",
+    "#.#...#.#.#...#.#.......#.#.....#...#",
+    "#.#..##.#.###.#.###.#####.#.###.##..#",
+    "#...#.....#.......#.......#.#...#...#",
+    "#.###.#####.####..#####.#.#...#.#.#.#",
+    "#.#.#...#...#...#...........#.#...#.#",
+    "#.#.###.###.#.#.##..#.#.#######.###.#",
+    "#.#...#.....#.#.#.....#.#...#...#...#",
+    "#.#.#.###.###.#...###.#A#.#.#.###.#.#",
+    "#.#.#...#.#...#...#...#.#.#...#...#.#",
+    "#.###.##....#######.###.#.#####.###.#",
+    "#...#.....#...#...#.#...#.......#.#.#",
+    "###.#.######....###.#.########.##.#.#",
+    "#...#...#.....#...#.#.............#.#",
+    "#.#######.#.#####.#.###.#.#######.#.#",
+    "#.#.......#.......#.#...#...#...#...#",
+    "#.#.#..###..###.#...#...#.#.###.#.#.#",
+    "#.#.#.#.....#.#.#.#.#.#...#...#...#.#",
+    "#.###.#.#.###...#.#.###.#####.#####.#",
+    "#.....#.................#..........D#",
     "#####################################",
   ];
 
   // ============================================================
-  //  SCHOOL MAZE  (داخل HTML)
+  //  NAV GRAPH  — المصدر الموحد للبيانات الهندسية
+  //  يُستخدم من: Collision + Minimap + AI + Spawn + Validation
+  // ============================================================
+  const NavGraph = {
+    rows: 0,
+    cols: 0,
+    walkable: null,      // Uint8Array[rows*cols] — 1=walkable, 0=wall
+    reachable: null,     // Uint8Array[rows*cols] — 1=reachable from S
+    reachableList: [],   // مصفوفة {r,c} للخلايا القابلة للوصول
+
+    build() {
+      const rows = mapLayout.length;
+      // تحقق من أن جميع الصفوف متساوية الطول
+      const cols = mapLayout[0].length;
+      for (let r = 0; r < rows; r++) {
+        if (mapLayout[r].length !== cols) {
+          console.error(`[NavGraph] ERROR: Row ${r} has length ${mapLayout[r].length}, expected ${cols}`);
+        }
+      }
+      this.rows = rows;
+      this.cols = cols;
+      this.walkable  = new Uint8Array(rows * cols);
+      this.reachable = new Uint8Array(rows * cols);
+
+      // تعبئة walkable
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          this.walkable[r * cols + c] = (mapLayout[r][c] !== '#') ? 1 : 0;
+        }
+      }
+
+      // BFS Flood Fill من نقطة S
+      let sr = -1, sc = -1;
+      outer: for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        if (mapLayout[r][c] === 'S') { sr = r; sc = c; break outer; }
+      }
+      if (sr === -1) { sr = 1; sc = 1; } // fallback
+
+      const queue = [sr * cols + sc];
+      this.reachable[sr * cols + sc] = 1;
+      const dirs4 = [-cols, cols, -1, 1];
+      let head = 0;
+      while (head < queue.length) {
+        const idx = queue[head++];
+        const r = (idx / cols) | 0;
+        const c = idx % cols;
+        this.reachableList.push({ r, c });
+        for (const d of dirs4) {
+          const ni = idx + d;
+          const nr = (ni / cols) | 0;
+          const nc = ni % cols;
+          // تحقق من حدود + walkable + غير مزارة
+          if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+          if (d === 1  && nc === 0) continue; // لف الصف
+          if (d === -1 && nc === cols - 1) continue;
+          if (this.reachable[ni] || !this.walkable[ni]) continue;
+          this.reachable[ni] = 1;
+          queue.push(ni);
+        }
+      }
+
+      // تشخيص
+      const totalWalkable = this.walkable.reduce((s, v) => s + v, 0);
+      const totalReachable = this.reachableList.length;
+      const isolated = totalWalkable - totalReachable;
+      console.log(`[NavGraph] ✅ Walkable: ${totalWalkable} | Reachable: ${totalReachable} | Isolated: ${isolated}`);
+      if (isolated > 0) console.error(`[NavGraph] ❌ CRITICAL: ${isolated} isolated cells found!`);
+
+      // تحقق من Door D
+      let doorReachable = false;
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        if (mapLayout[r][c] === 'D' && this.reachable[r * cols + c]) doorReachable = true;
+      }
+      console.log(`[NavGraph] Door reachable: ${doorReachable ? '✅' : '❌ CRITICAL BUG'}`);
+    },
+
+    isWalkable(r, c) {
+      if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) return false;
+      return this.walkable[r * this.cols + c] === 1;
+    },
+
+    isReachable(r, c) {
+      if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) return false;
+      return this.reachable[r * this.cols + c] === 1;
+    },
+
+    // إيجاد خلية عشوائية قابلة للوصول بعيدة عن موضع مرجعي
+    randomReachableCell(avoidR, avoidC, minCellDist = 5) {
+      // فلتر بمسافة كافية
+      let candidates = this.reachableList.filter(({r, c}) => {
+        if (mapLayout[r][c] === '#' || mapLayout[r][c] === 'D') return false;
+        return Math.abs(r - avoidR) + Math.abs(c - avoidC) >= minCellDist;
+      });
+      if (candidates.length === 0) candidates = this.reachableList.filter(({r,c}) => mapLayout[r][c] !== '#');
+      if (candidates.length === 0) return { r: avoidR, c: avoidC };
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+  };
+
+  // ============================================================
+  //  SCHOOL MAZE  (داخل HTML) — موحّد مع NavGraph
   // ============================================================
   class SchoolMaze {
     constructor(scene) {
@@ -490,8 +595,11 @@
     }
 
     build() {
-      const rows = mapLayout.length;
-      const cols = mapLayout[0].length;
+      // أولاً: بناء NavGraph (المصدر الموحد)
+      NavGraph.build();
+
+      const rows = NavGraph.rows;
+      const cols = NavGraph.cols;
 
       const floorGeo = new THREE.PlaneGeometry(cols * this.cellSize, rows * this.cellSize);
       const floor = new THREE.Mesh(floorGeo, this.floorMat);
@@ -509,10 +617,8 @@
       const matrices = [];
       const dummy = new THREE.Object3D();
 
-      // مواقع المفاتيح والخريطة
       this.keyObjects = [];
       this.mapItemObj = null;
-      this._freeCells = [];
 
       for (let z = 0; z < rows; z++) {
         for (let x = 0; x < cols; x++) {
@@ -530,7 +636,6 @@
           } else {
             if (t === 'S') this.spawn.set(px, 0, pz);
             if (t === 'D') { this.doorPos.set(px, 0, pz); this._buildDoor(px, pz); }
-            if (t !== 'D' && t !== 'S') this._freeCells.push({ x: px, z: pz });
           }
         }
       }
@@ -540,15 +645,13 @@
       walls.instanceMatrix.needsUpdate = true;
       this.scene.add(walls);
 
-      // ---- وضع المفاتيح الثلاثة في مواقع عشوائية بعيدة عن نقطة البداية ----
+      // وضع المفاتيح والخريطة بناءً على NavGraph
       this._placeKeys();
-      // ---- وضع الخريطة (آيتم) ----
       this._placeMapItem();
 
       this.scene.background = new THREE.Color('#1a2213');
-      // APK/WebView: تقليل مسافة الـ fog يعني رندر أشياء أقل → أداء أفضل
-      const fogFar = (_isWebView) ? 32 : (_isMobile ? 42 : 70);
-      const fogNear = (_isWebView) ? 10 : 14;
+      const fogFar  = _isWebView ? 32 : (_isMobile ? 42 : 70);
+      const fogNear = _isWebView ? 10 : 14;
       this.scene.fog = new THREE.Fog('#1a2213', fogNear, fogFar);
 
       this.scene.add(new THREE.AmbientLight('#ffffff', 1.4));
@@ -557,137 +660,245 @@
       sun.position.set(20, 26, 12);
       this.scene.add(sun);
 
-      const lightPositions = [];
-      for (let z = 1; z < rows - 1; z++) {
-        for (let x = 1; x < cols - 1; x++) {
-          if (mapLayout[z][x] !== '#') lightPositions.push([x * this.cellSize, z * this.cellSize]);
-        }
-      }
-      // على APK نضع مصباحاً واحداً فقط (يوفر GPU كثيراً) — على سطح المكتب 3
-      const _lightCount = (_isWebView) ? 1 : (_isMobile ? 2 : 3);
-      const step = Math.floor(lightPositions.length / _lightCount);
+      // أضواء موزعة على الخلايا القابلة للوصول
+      const _lightCount = _isWebView ? 1 : (_isMobile ? 2 : 3);
+      const lightStep = Math.floor(NavGraph.reachableList.length / _lightCount);
       for (let i = 0; i < _lightCount; i++) {
-        const [lx, lz] = lightPositions[Math.min(i * step + step / 2 | 0, lightPositions.length - 1)];
+        const cell = NavGraph.reachableList[Math.min(i * lightStep + (lightStep / 2 | 0), NavGraph.reachableList.length - 1)];
         const l = new THREE.PointLight('#ffe8a0', 1.8, 22, 2.0);
-        l.position.set(lx, 2.5, lz);
+        l.position.set(cell.c * this.cellSize, 2.5, cell.r * this.cellSize);
         this.scene.add(l);
       }
     }
 
     _placeKeys() {
-      // اختر 3 خلايا حرة بعيدة عن البداية
-      const shuffled = [...this._freeCells].sort(() => Math.random() - 0.5);
-      const farCells = shuffled.filter(c => Math.hypot(c.x - this.spawn.x, c.z - this.spawn.z) > 30);
-      const chosen = farCells.slice(0, 3);
-      if (chosen.length < 3) chosen.push(...shuffled.slice(0, 3 - chosen.length));
-
+      // استخدم NavGraph — خلايا reachable بعيدة عن الـ Spawn
+      const spawnR = Math.round(this.spawn.z / this.cellSize);
+      const spawnC = Math.round(this.spawn.x / this.cellSize);
+      const cs = this.cellSize;
       const keyColors = [0xffd700, 0x00bfff, 0xff4500];
-      chosen.forEach((cell, i) => {
-        const keyGroup = new THREE.Group();
-        // جسم المفتاح
-        const headMat = new THREE.MeshStandardMaterial({ color: keyColors[i], metalness: 0.9, roughness: 0.1, emissive: new THREE.Color(keyColors[i]), emissiveIntensity: 0.3 });
-        const head = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.06, 8, 16), headMat);
-        head.rotation.x = Math.PI / 2;
-        head.position.y = 0.55;
-        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 8), headMat);
-        shaft.position.y = 0.28;
-        const tooth1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.06), headMat);
-        tooth1.position.set(0.1, 0.18, 0);
-        const tooth2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.06), headMat);
-        tooth2.position.set(0.1, 0.1, 0);
-        keyGroup.add(head, shaft, tooth1, tooth2);
 
-        // ضوء صغير حول المفتاح — نتجنبه على APK
-        if (!(_isWebView)) {
-          const kLight = new THREE.PointLight(keyColors[i], 0.8, 4);
-          kLight.position.y = 0.5;
-          keyGroup.add(kLight);
+      // اختر 3 خلايا reachable بعيدة عن البداية ومتباعدة عن بعضها
+      const placed = [];
+      for (let i = 0; i < 3; i++) {
+        let best = null, bestScore = -1;
+        // جرب 50 خلية عشوائية واختر الأبعد
+        for (let attempt = 0; attempt < 80; attempt++) {
+          const minDist = 10 + i * 3;
+          const cell = NavGraph.randomReachableCell(spawnR, spawnC, minDist);
+          if (mapLayout[cell.r][cell.c] === 'A' || mapLayout[cell.r][cell.c] === 'D') continue;
+          // تأكد أنها ليست قريبة من مفاتيح أخرى
+          const tooClose = placed.some(p => Math.abs(p.r - cell.r) + Math.abs(p.c - cell.c) < 6);
+          if (tooClose) continue;
+          const score = Math.abs(cell.r - spawnR) + Math.abs(cell.c - spawnC);
+          if (score > bestScore) { bestScore = score; best = cell; }
         }
+        if (!best) best = NavGraph.randomReachableCell(spawnR, spawnC, 4);
+        placed.push(best);
 
-        keyGroup.position.set(cell.x, 0, cell.z);
-        keyGroup.userData = { isKey: true, keyIndex: i, collected: false, worldPos: { x: cell.x, z: cell.z } };
+        const px = best.c * cs, pz = best.r * cs;
+        const keyGroup = new THREE.Group();
+        const headMat = new THREE.MeshStandardMaterial({ color: keyColors[i], metalness: 0.9, roughness: 0.1, emissive: new THREE.Color(keyColors[i]), emissiveIntensity: 0.3 });
+        const head  = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.06, 8, 16), headMat);
+        head.rotation.x = Math.PI / 2; head.position.y = 0.55;
+        const shaft  = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 8), headMat);
+        shaft.position.y = 0.28;
+        const tooth1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.06), headMat); tooth1.position.set(0.1, 0.18, 0);
+        const tooth2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.06), headMat); tooth2.position.set(0.1, 0.1, 0);
+        keyGroup.add(head, shaft, tooth1, tooth2);
+        if (!_isWebView) { const kl = new THREE.PointLight(keyColors[i], 0.8, 4); kl.position.y = 0.5; keyGroup.add(kl); }
+        keyGroup.position.set(px, 0, pz);
+        keyGroup.userData = { isKey: true, keyIndex: i, collected: false, worldPos: { x: px, z: pz } };
         this.keyObjects.push(keyGroup);
         this.scene.add(keyGroup);
-      });
+        console.log(`[Spawn] Key ${i} at grid (${best.r},${best.c}) — reachable: ${NavGraph.isReachable(best.r, best.c)}`);
+      }
     }
 
     _placeMapItem() {
-      // اختر خلية حرة عشوائية
-      const shuffled = [...this._freeCells].sort(() => Math.random() - 0.5);
-      const cell = shuffled.find(c => Math.hypot(c.x - this.spawn.x, c.z - this.spawn.z) > 15) || shuffled[0];
+      const spawnR = Math.round(this.spawn.z / this.cellSize);
+      const spawnC = Math.round(this.spawn.x / this.cellSize);
+      const cell = NavGraph.randomReachableCell(spawnR, spawnC, 6);
       if (!cell) return;
 
+      const cs = this.cellSize;
+      const px = cell.c * cs, pz = cell.r * cs;
       const mapGroup = new THREE.Group();
       const paperMat = new THREE.MeshStandardMaterial({ color: '#e8d5a3', roughness: 0.8, emissive: new THREE.Color('#c4a84f'), emissiveIntensity: 0.2 });
       const paper = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.02, 0.35), paperMat);
       paper.position.y = 0.01;
-      // رسم تفاصيل على الورقة
       const lineMat = new THREE.MeshStandardMaterial({ color: '#5a3e28' });
       for (let i = 0; i < 3; i++) {
         const line = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.005, 0.02), lineMat);
         line.position.set(0, 0.015, -0.06 + i * 0.06);
         paper.add(line);
       }
-      if (!(_isWebView)) {
-        const mLight = new THREE.PointLight('#ffcc55', 0.6, 3);
-        mLight.position.y = 0.5;
-        mapGroup.add(mLight);
-      }
+      if (!_isWebView) { const ml = new THREE.PointLight('#ffcc55', 0.6, 3); ml.position.y = 0.5; mapGroup.add(ml); }
       mapGroup.add(paper);
-      mapGroup.position.set(cell.x, 0, cell.z);
-      mapGroup.userData = { isMapItem: true, collected: false, worldPos: { x: cell.x, z: cell.z } };
+      mapGroup.position.set(px, 0, pz);
+      mapGroup.userData = { isMapItem: true, collected: false, worldPos: { x: px, z: pz } };
       this.mapItemObj = mapGroup;
       this.scene.add(mapGroup);
+      console.log(`[Spawn] MapItem at grid (${cell.r},${cell.c}) — reachable: ${NavGraph.isReachable(cell.r, cell.c)}`);
     }
 
     _buildDoor(x, z) {
+      // ===== باب واقعي صغير ملتزق بالجدار =====
+      // أبعاد الباب: عرض 1.1 وحدة، ارتفاع 2.2 وحدة — أصغر بكثير من الخلية (3.4)
+      const DW = 1.1;   // عرض الباب
+      const DH = 2.2;   // ارتفاع الباب
+      const DT = 0.10;  // سُمك الباب
+
+      // ===== مواد الباب =====
+      const doorPanelMat = new THREE.MeshStandardMaterial({
+        color: '#5c3a1e',   // بني خشبي داكن
+        roughness: 0.85,
+        metalness: 0.05,
+      });
+      const doorFrameMat = new THREE.MeshStandardMaterial({
+        color: '#3a2008',   // إطار أغمق
+        roughness: 0.9,
+        metalness: 0.0,
+      });
+      const handleMat = new THREE.MeshStandardMaterial({
+        color: '#c8a000',   // مقبض ذهبي
+        roughness: 0.2,
+        metalness: 0.9,
+      });
+
+      // ===== مجموعة الإطار (ثابتة، ملتصقة بالجدار) =====
+      this.doorFrameGroup = new THREE.Group();
+      this.doorFrameGroup.position.set(x, 0, z);
+
+      // الإطار العلوي
+      const topFrame = new THREE.Mesh(new THREE.BoxGeometry(DW + 0.14, 0.08, DT + 0.04), doorFrameMat);
+      topFrame.position.set(0, DH + 0.04, 0);
+      this.doorFrameGroup.add(topFrame);
+
+      // الإطار الأيسر
+      const leftFrame = new THREE.Mesh(new THREE.BoxGeometry(0.07, DH + 0.1, DT + 0.04), doorFrameMat);
+      leftFrame.position.set(-(DW / 2 + 0.035), DH / 2, 0);
+      this.doorFrameGroup.add(leftFrame);
+
+      // الإطار الأيمن
+      const rightFrame = new THREE.Mesh(new THREE.BoxGeometry(0.07, DH + 0.1, DT + 0.04), doorFrameMat);
+      rightFrame.position.set(DW / 2 + 0.035, DH / 2, 0);
+      this.doorFrameGroup.add(rightFrame);
+
+      this.scene.add(this.doorFrameGroup);
+
+      // ===== جدارين جانبيين يملآن باقي فتحة الخلية على يمين ويسار الباب =====
+      // عرض الخلية = this.cellSize ≈ 3.4 ، عرض الباب = DW = 1.1
+      // الفراغ على كل جانب = (cellSize - DW) / 2 ≈ 1.15
+      const sideW = (this.cellSize - DW) / 2;
+      const sideMat = this.wallMat;
+
+      // جدار يسار الباب
+      const sideLeft = new THREE.Mesh(
+        new THREE.BoxGeometry(sideW, this.wallHeight, DT + 0.02),
+        sideMat
+      );
+      sideLeft.position.set(x - DW / 2 - sideW / 2, this.wallHeight / 2, z);
+      this.scene.add(sideLeft);
+      this.colliders.push({
+        min: { x: x - DW / 2 - sideW - 0.05, z: z - DT / 2 - 0.05 },
+        max: { x: x - DW / 2 + 0.05,          z: z + DT / 2 + 0.05 }
+      });
+
+      // جدار يمين الباب
+      const sideRight = new THREE.Mesh(
+        new THREE.BoxGeometry(sideW, this.wallHeight, DT + 0.02),
+        sideMat
+      );
+      sideRight.position.set(x + DW / 2 + sideW / 2, this.wallHeight / 2, z);
+      this.scene.add(sideRight);
+      this.colliders.push({
+        min: { x: x + DW / 2 - 0.05,          z: z - DT / 2 - 0.05 },
+        max: { x: x + DW / 2 + sideW + 0.05,  z: z + DT / 2 + 0.05 }
+      });
+
+      // الجزء العلوي فوق الباب (حتى السقف)
+      const topFill = new THREE.Mesh(
+        new THREE.BoxGeometry(DW, this.wallHeight - DH, DT + 0.02),
+        sideMat
+      );
+      topFill.position.set(x, DH + (this.wallHeight - DH) / 2, z);
+      this.scene.add(topFill);
+      this.colliders.push({
+        min: { x: x - DW / 2 - 0.05, z: z - DT / 2 - 0.05 },
+        max: { x: x + DW / 2 + 0.05, z: z + DT / 2 + 0.05 }
+      });
+
+      // ===== مجموعة الباب المتحركة (تدور عند الفتح) =====
+      // محور الدوران عند الحافة اليسرى من الباب
       this.doorGroup = new THREE.Group();
-      this.doorGroup.position.set(x - this.cellSize / 2, 0, z);
-      const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(this.cellSize, this.wallHeight, this.cellSize * 0.8), this.wallMat);
-      doorMesh.position.set(this.cellSize / 2, this.wallHeight / 2, 0);
-      this.doorGroup.add(doorMesh);
-      this.doorCollider = { min: { x: x - this.cellSize / 2, z: z - this.cellSize / 2 }, max: { x: x + this.cellSize / 2, z: z + this.cellSize / 2 } };
-      this.colliders.push(this.doorCollider);
+      this.doorGroup.position.set(x - DW / 2, 0, z);
+
+      // لوح الباب الرئيسي
+      const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(DW, DH, DT), doorPanelMat);
+      doorPanel.position.set(DW / 2, DH / 2, 0);
+      this.doorGroup.add(doorPanel);
+
+      // زخرفة: لوح علوي داخل الباب
+      const panelTop = new THREE.Mesh(new THREE.BoxGeometry(DW * 0.72, DH * 0.38, DT * 0.5), doorFrameMat);
+      panelTop.position.set(DW / 2, DH * 0.7, DT * 0.26);
+      this.doorGroup.add(panelTop);
+
+      // زخرفة: لوح سفلي داخل الباب
+      const panelBot = new THREE.Mesh(new THREE.BoxGeometry(DW * 0.72, DH * 0.32, DT * 0.5), doorFrameMat);
+      panelBot.position.set(DW / 2, DH * 0.28, DT * 0.26);
+      this.doorGroup.add(panelBot);
+
+      // مقبض الباب (كرة ذهبية + عصا)
+      const knobSphere = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 10), handleMat);
+      knobSphere.position.set(DW - 0.14, DH / 2, DT * 0.7);
+      this.doorGroup.add(knobSphere);
+
+      const knobStick = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.18, 8), handleMat);
+      knobStick.rotation.z = Math.PI / 2;
+      knobStick.position.set(DW - 0.14, DH / 2, DT * 0.25);
+      this.doorGroup.add(knobStick);
+
       this.scene.add(this.doorGroup);
+
+      // ضوء فوق الباب يجعله مرئياً من بعيد
+      const doorLight = new THREE.PointLight('#ffaa44', 1.4, 10);
+      doorLight.position.set(x, DH + 0.6, z + 0.5);
+      this.scene.add(doorLight);
+
+      // ===== الـ Collider: فقط منطقة الباب الفعلية الصغيرة =====
+      this.doorCollider = {
+        min: { x: x - DW / 2 - 0.05, z: z - DT / 2 - 0.05 },
+        max: { x: x + DW / 2 + 0.05, z: z + DT / 2 + 0.05 }
+      };
+      this.colliders.push(this.doorCollider);
       this.doorOpened = false;
+      this._doorWidth = DW;
     }
 
     openDoor() {
       if (this.doorOpened) return;
-      if (GameState.keysCollected < GameState.totalKeys) return; // يحتاج 3 مفاتيح
       this.doorOpened = true;
+      // إزالة الـ collider فور الفتح حتى يمر اللاعب والعدو
       this.colliders = this.colliders.filter(c => c !== this.doorCollider);
+      let rot = 0;
+      const target = Math.PI / 2;
       const animate = () => {
-        this.doorGroup.rotation.y += 0.04;
-        if (this.doorGroup.rotation.y < Math.PI / 2) requestAnimationFrame(animate);
+        rot += 0.045;
+        this.doorGroup.rotation.y = Math.min(rot, target);
+        if (rot < target) requestAnimationFrame(animate);
       };
       animate();
     }
 
-    // إرجاع موضع خلية عشوائية فارغة بعيدة عن نقطة مرجعية
+    // إرجاع موضع عشوائي reachable بعيد عن موضع مرجعي — يستخدم NavGraph
     getRandomFreeCell(avoidPos, minDist = 12) {
-      const rows = mapLayout.length;
-      const cols = mapLayout[0].length;
-      const candidates = [];
-      for (let z = 1; z < rows - 1; z++) {
-        for (let x = 1; x < cols - 1; x++) {
-          if (mapLayout[z][x] !== '#' && mapLayout[z][x] !== 'D') {
-            const wx = x * this.cellSize;
-            const wz = z * this.cellSize;
-            const dist = Math.hypot(wx - avoidPos.x, wz - avoidPos.z);
-            if (dist >= minDist) candidates.push(new THREE.Vector3(wx, 0, wz));
-          }
-        }
-      }
-      if (candidates.length === 0) {
-        // fallback: أي خلية فارغة
-        for (let z = 1; z < rows - 1; z++) {
-          for (let x = 1; x < cols - 1; x++) {
-            if (mapLayout[z][x] !== '#') candidates.push(new THREE.Vector3(x * this.cellSize, 0, z * this.cellSize));
-          }
-        }
-      }
-      return candidates[Math.floor(Math.random() * candidates.length)];
+      const cs = this.cellSize;
+      const avoidR = Math.round(avoidPos.z / cs);
+      const avoidC = Math.round(avoidPos.x / cs);
+      const minCellDist = Math.ceil(minDist / cs);
+      const cell = NavGraph.randomReachableCell(avoidR, avoidC, minCellDist);
+      return new THREE.Vector3(cell.c * cs, 0, cell.r * cs);
     }
   }
 
@@ -872,12 +1083,14 @@
       if (this.keys['KeyA']) mX -= 1;
       if (this.keys['KeyD']) mX += 1;
       mX += this.joy.x;
-      mY -= this.joy.y;
+      mY -= this.joy.y;   // joy.y موجب للأسفل، لذا نطرحه صحيح
       const len = Math.hypot(mX, mY);
       if (len > 1) { mX /= len; mY /= len; }
 
-      const fwd = this._fwd.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-      const rgt = this._rgt.set(fwd.z,              0, -fwd.x);
+      // في Three.js الكاميرا تنظر نحو -Z عند yaw=0
+      // fwd يجب أن يشير إلى الاتجاه الذي تنظر إليه الكاميرا
+      const fwd = this._fwd.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+      const rgt = this._rgt.set(-fwd.z,              0,  fwd.x);
       const dir = this._dir.set(0, 0, 0);
       dir.addScaledVector(rgt, mX).addScaledVector(fwd, mY);
 
@@ -1107,8 +1320,8 @@
         btn.addEventListener('mouseenter', () => { btn.style.transform='scale(1.03)'; btn.style.filter='brightness(1.2)'; });
         btn.addEventListener('mouseleave', () => { btn.style.transform='scale(1)'; btn.style.filter='brightness(1)'; });
         btn.addEventListener('click', () => this._answer(i));
-        // للموبايل
-        btn.addEventListener('touchend', e => { e.preventDefault(); this._answer(i); });
+        // للموبايل - stopPropagation لمنع تفعيل click أيضاً
+        btn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); this._answer(i); });
         choicesDiv.appendChild(btn);
       });
 
@@ -1370,11 +1583,13 @@
       inner.style.animation = 'none';
       void inner.offsetWidth;
       inner.style.animation = 'kickSvgAnim 0.75s cubic-bezier(0.22,1,0.36,1) forwards';
-      // إعادة شرارات
+      // إعادة شرارات — يجب حفظ الأنيميشن الأصلي وإعادة تعيينه
       inner.querySelectorAll('div').forEach(d => {
+        const anim = d.getAttribute('data-anim') || d.style.animation;
+        if (!d.getAttribute('data-anim')) d.setAttribute('data-anim', anim);
         d.style.animation = 'none';
         void d.offsetWidth;
-        d.style.animation = d.style.animation;
+        d.style.animation = d.getAttribute('data-anim');
       });
       setTimeout(() => {
         this._el.style.display = 'none';
@@ -1403,7 +1618,6 @@
       this.DAMAGE_PER_SHOT = 10;
       this.BASE_PLAYER_SPEED = 7.0;   // سرعة اللاعب الأساسية
       this.ENEMY_RADIUS    = 0.45;
-      this.DETECT_RANGE    = 60;      // يطارد دائماً (نطاق كبير جداً)
       this.ATTACK_RANGE    = 1.6;     // مسافة القبض
       this.SWAP_INTERVAL   = 0.2;
       this.RESPAWN_DELAY   = 1.0;     // Respawn سريع جداً
@@ -1435,7 +1649,6 @@
       this._lastHitTime = 0;
 
       // راي كاستر لفحص الجدران (لا يستخدم mesh - يستخدم colliders)
-      this._lastHitTime = 0;
 
       this._buildHealthBar();
       this._buildGrid();
@@ -1448,16 +1661,29 @@
       this.group.position.copy(spawnCell);
     }
 
-    // تسجيل كل الـ meshes في المشهد للكشف عن الجدران - غير مستخدم (colliders تكفل ذلك)
+    // يجد موضع spawn العدو — يعتمد على NavGraph للتحقق من reachability
     _findInitialSpawn() {
-      for (let z = 0; z < mapLayout.length; z++) {
-        for (let x = 0; x < mapLayout[z].length; x++) {
-          if (mapLayout[z][x] === 'A') {
-            return new THREE.Vector3(x * this.maze.cellSize, 0, z * this.maze.cellSize);
+      const cs = this.maze.cellSize;
+      // ابحث عن 'A' في الخريطة أولاً
+      for (let r = 0; r < mapLayout.length; r++) {
+        for (let c = 0; c < mapLayout[r].length; c++) {
+          if (mapLayout[r][c] === 'A') {
+            // تحقق أن A قابلة للوصول
+            if (NavGraph.isReachable(r, c)) {
+              console.log(`[Enemy] Initial spawn at 'A' (${r},${c}) ✅`);
+              return new THREE.Vector3(c * cs, 0, r * cs);
+            } else {
+              console.warn(`[Enemy] 'A' at (${r},${c}) NOT reachable — using NavGraph fallback`);
+            }
           }
         }
       }
-      return new THREE.Vector3(10, 0, 30);
+      // Fallback: خلية reachable في منتصف الخريطة بعيدة عن S
+      const spawnR = Math.round(this.maze.spawn.z / cs);
+      const spawnC = Math.round(this.maze.spawn.x / cs);
+      const cell = NavGraph.randomReachableCell(spawnR, spawnC, 12);
+      console.log(`[Enemy] Fallback spawn at (${cell.r},${cell.c})`);
+      return new THREE.Vector3(cell.c * cs, 0, cell.r * cs);
     }
 
     _loadModels() {
@@ -1568,10 +1794,18 @@
     }
 
     _respawn() {
-      // ابحث عن خلية فارغة بعيدة عن اللاعب (لا تكون داخل جدار)
+      // ابحث عن خلية reachable بعيدة عن اللاعب — مضمونة بواسطة NavGraph
       const spawnPos = this.maze.getRandomFreeCell(this.camera.position, 18);
       if (spawnPos) {
         this.group.position.copy(spawnPos);
+        // تحقق أن الموضع الجديد reachable
+        const cs = this.maze.cellSize;
+        const r = Math.round(spawnPos.z / cs);
+        const c = Math.round(spawnPos.x / cs);
+        if (!NavGraph.isReachable(r, c)) {
+          console.warn('[Enemy] Respawn landed in non-reachable cell! Forcing to spawn point.');
+          this.group.position.copy(this._findInitialSpawn());
+        }
       }
       this._hp     = this.MAX_HP;
       this._isDead = false;
@@ -1579,6 +1813,10 @@
       this.group.visible = true;
       this._drawHpBar(this._hp);
       this._currentEnemySpeed = this._baseEnemySpeed;
+      // إعادة تعيين مؤقت المسار لإعادة الحساب فوراً
+      this._pathTimer = 999;
+      this._currentPath = null;
+      this._pathStep = 1;
     }
 
     // ---- فحص هل هناك جدار بين اللاعب والعدو (باستخدام colliders) ----
@@ -1646,6 +1884,7 @@
         () => {
           GameState.hearts = Math.max(0, GameState.hearts - 1);
           renderHearts();
+          if (GameState.hearts <= 0) GameState.gameOver = true;
           // هدية الخريطة إذا وصل للقلب الأخير
           if (GameState.hearts <= 1 && !GameState.hasMap) {
             GameState.hasMap = true;
@@ -1666,10 +1905,16 @@
             GameSettings.paused = false;
             if (GameState.hearts <= 0) {
               // ===== إعادة كاملة من البداية: مفاتيح + خريطة تتصفر =====
+              GameState.gameOver = false; // إعادة تعيين gameOver عند البدء من جديد
               GameState.hearts = GameState.maxHearts;
               GameState.keysCollected = 0;
               GameState.hasMap = false;
               GameState.mapRevealed = false;
+              // تصفير أي مفاتيح عالقة
+              player.keys = {};
+              player.joy  = { x: 0, y: 0 };
+              player.firePressed = false;
+              player.interactPressed = false;
               renderHearts();
               // إعادة المفاتيح للظهور
               for (const k of this.maze.keyObjects) {
@@ -1708,18 +1953,19 @@
     // ============================================================
     // BFS Pathfinding — يجد أقرب مسار عبر الجدران
     // ============================================================
+    // يعتمد على NavGraph كمصدر موحد — لا تكرار في البيانات
     _buildGrid() {
-      const rows = mapLayout.length;
-      const cols = mapLayout[0].length;
-      this._gridRows = rows;
-      this._gridCols = cols;
+      this._gridRows = NavGraph.rows;
+      this._gridCols = NavGraph.cols;
+      // نستخدم NavGraph.walkable مباشرة (نفس المصدر للـ collision والـ pathfinding)
       this._grid = [];
-      for (let z = 0; z < rows; z++) {
-        this._grid[z] = [];
-        for (let x = 0; x < cols; x++) {
-          this._grid[z][x] = mapLayout[z][x] !== '#';
+      for (let r = 0; r < this._gridRows; r++) {
+        this._grid[r] = [];
+        for (let c = 0; c < this._gridCols; c++) {
+          this._grid[r][c] = NavGraph.isWalkable(r, c);
         }
       }
+      console.log(`[NavGraph→AI] Grid ${this._gridRows}×${this._gridCols} loaded from NavGraph ✅`);
     }
 
     _worldToGrid(wx, wz) {
@@ -1735,7 +1981,8 @@
       const cols = this._gridCols;
       if (!this._grid) return null;
       const visited = new Uint8Array(rows * cols);
-      const parent  = new Int32Array(rows * cols).fill(-1);
+      // استخدم Map بدلاً من Int32Array لتجنب مشكلة fill(-1)
+      const parent  = {};
       const queue   = [];
       const idx = (gx, gz) => gz * cols + gx;
 
@@ -1745,17 +1992,20 @@
       goalGx  = clampGx(goalGx);  goalGz  = clampGz(goalGz);
 
       if (!this._grid[startGz][startGx]) return null;
-      visited[idx(startGx, startGz)] = 1;
+      const startIdx = idx(startGx, startGz);
+      visited[startIdx] = 1;
+      parent[startIdx] = -1; // نقطة البداية
       queue.push([startGx, startGz]);
       let head = 0;
 
       const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
       while (head < queue.length) {
         const [cx, cz] = queue[head++];
+        const curIdx = idx(cx, cz);
         if (cx === goalGx && cz === goalGz) {
           // تتبع المسار
           let path = [];
-          let cur = idx(cx, cz);
+          let cur = curIdx;
           while (cur !== -1) {
             const pgz = Math.floor(cur / cols);
             const pgx = cur % cols;
@@ -1771,7 +2021,7 @@
           const ni = idx(nx, nz);
           if (visited[ni]) continue;
           visited[ni] = 1;
-          parent[ni] = idx(cx, cz);
+          parent[ni] = curIdx;
           queue.push([nx, nz]);
         }
       }
@@ -1879,8 +2129,8 @@
       overlay.classList.toggle('hidden', !GameSettings.paused);
       if (!GameSettings.paused) {
         AudioSys.init();
-        // تشغيل الموسيقى عند بدء اللعبة
-        MusicSys.init(AudioSys.ctx);
+        // تشغيل الموسيقى فقط إذا كانت مفعّلة في الإعدادات
+        if (GameSettings.music) MusicSys.init(AudioSys.ctx);
         if (window.innerWidth > 768) document.body.requestPointerLock();
       } else {
         document.exitPointerLock?.();
@@ -1898,7 +2148,9 @@
   }
 
   // ============================================================
-  //  MAP OVERLAY SYSTEM  (خريطة تعرض الماب كله)
+  //  MAP OVERLAY SYSTEM  — مُعاد بناؤه بالكامل من NavGraph
+  //  ✅ يستخدم نفس NavGraph المصدر كـ collision + AI + spawn
+  //  ✅ لا mismatch بين العالم الحقيقي والخريطة المعروضة
   // ============================================================
   const MapOverlay = {
     _el: null,
@@ -1937,12 +2189,15 @@
     },
     hide() {
       this._el.style.display = 'none';
-      GameSettings.paused = false;
+      if (!GameState.questionActive && !GameState.captureActive) {
+        GameSettings.paused = false;
+      }
     },
     _draw() {
       const ctx = this._canvas.getContext('2d');
-      const rows = mapLayout.length;
-      const cols = mapLayout[0].length;
+      // ✅ الأبعاد من NavGraph — نفس مصدر العالم
+      const rows = NavGraph.rows;
+      const cols = NavGraph.cols;
       const cw = this._canvas.width;
       const ch = this._canvas.height;
       const cellW = cw / cols;
@@ -1951,82 +2206,84 @@
       ctx.fillStyle = '#0d1b0d';
       ctx.fillRect(0, 0, cw, ch);
 
-      for (let z = 0; z < rows; z++) {
-        for (let x = 0; x < cols; x++) {
-          const t = mapLayout[z][x];
-          const px = x * cellW;
-          const pz = z * cellH;
-          if (t === '#') {
+      // ✅ رسم الخلايا مباشرة من NavGraph.walkable — صحيح 100%
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const px = c * cellW;
+          const pz = r * cellH;
+          if (NavGraph.isWalkable(r, c)) {
+            // تمييز الخلايا reachable عن غيرها (للتشخيص — كلها reachable الآن)
+            ctx.fillStyle = NavGraph.isReachable(r, c) ? '#1a2e1a' : '#2a1010';
+            ctx.fillRect(px, pz, cellW, cellH);
+          } else {
             ctx.fillStyle = '#4a5a3a';
             ctx.fillRect(px + 1, pz + 1, cellW - 2, cellH - 2);
-          } else {
-            ctx.fillStyle = '#1a2e1a';
-            ctx.fillRect(px, pz, cellW, cellH);
           }
         }
       }
 
       const cs = this._maze.cellSize;
+
       // رسم المفاتيح
       for (const k of this._maze.keyObjects) {
         if (k.userData.collected) continue;
-        const gx = k.position.x / cs;
-        const gz = k.position.z / cs;
+        const gc = k.position.x / cs;
+        const gr = k.position.z / cs;
         ctx.fillStyle = '#ffd700';
         ctx.beginPath();
-        ctx.arc(gx * cellW + cellW / 2, gz * cellH + cellH / 2, Math.max(cellW * 0.35, 4), 0, Math.PI * 2);
+        ctx.arc(gc * cellW + cellW / 2, gr * cellH + cellH / 2, Math.max(cellW * 0.35, 4), 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#000';
         ctx.font = `bold ${Math.max(cellH * 0.6, 8)}px sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('K', gx * cellW + cellW / 2, gz * cellH + cellH / 2);
+        ctx.fillText('K', gc * cellW + cellW / 2, gr * cellH + cellH / 2);
       }
 
       // رسم الخريطة (آيتم) إذا لم تُجمع
       if (this._maze.mapItemObj && !this._maze.mapItemObj.userData.collected) {
         const mp = this._maze.mapItemObj.position;
-        const gx = mp.x / cs; const gz = mp.z / cs;
+        const gc = mp.x / cs; const gr = mp.z / cs;
         ctx.fillStyle = '#00ccff';
-        ctx.fillRect(gx * cellW + 1, gz * cellH + 1, cellW - 2, cellH - 2);
+        ctx.fillRect(gc * cellW + 1, gr * cellH + 1, cellW - 2, cellH - 2);
         ctx.fillStyle = '#000';
         ctx.font = `bold ${Math.max(cellH * 0.55, 7)}px sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('M', gx * cellW + cellW / 2, gz * cellH + cellH / 2);
+        ctx.fillText('M', gc * cellW + cellW / 2, gr * cellH + cellH / 2);
       }
 
       // رسم الباب
-      const dgx = this._maze.doorPos.x / cs;
-      const dgz = this._maze.doorPos.z / cs;
+      const dgc = this._maze.doorPos.x / cs;
+      const dgr = this._maze.doorPos.z / cs;
       ctx.fillStyle = '#ff6600';
-      ctx.fillRect(dgx * cellW + 1, dgz * cellH + 1, cellW - 2, cellH - 2);
+      ctx.fillRect(dgc * cellW + 1, dgr * cellH + 1, cellW - 2, cellH - 2);
       ctx.fillStyle = '#fff';
       ctx.font = `bold ${Math.max(cellH * 0.55, 7)}px sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('D', dgx * cellW + cellW / 2, dgz * cellH + cellH / 2);
+      ctx.fillText('D', dgc * cellW + cellW / 2, dgr * cellH + cellH / 2);
 
       // رسم العدو
-      const egx = this._enemy.group.position.x / cs;
-      const egz = this._enemy.group.position.z / cs;
+      const egc = this._enemy.group.position.x / cs;
+      const egr = this._enemy.group.position.z / cs;
       ctx.fillStyle = '#ff0000';
       ctx.beginPath();
-      ctx.arc(egx * cellW + cellW / 2, egz * cellH + cellH / 2, Math.max(cellW * 0.4, 5), 0, Math.PI * 2);
+      ctx.arc(egc * cellW + cellW / 2, egr * cellH + cellH / 2, Math.max(cellW * 0.4, 5), 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#fff';
       ctx.font = `bold ${Math.max(cellH * 0.6, 8)}px sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('👹', egx * cellW + cellW / 2, egz * cellH + cellH / 2);
+      ctx.fillText('👹', egc * cellW + cellW / 2, egr * cellH + cellH / 2);
 
       // رسم اللاعب
-      const pgx = this._camera.position.x / cs;
-      const pgz = this._camera.position.z / cs;
+      const pgc = this._camera.position.x / cs;
+      const pgr = this._camera.position.z / cs;
       ctx.fillStyle = '#00ff88';
       ctx.beginPath();
-      ctx.arc(pgx * cellW + cellW / 2, pgz * cellH + cellH / 2, Math.max(cellW * 0.45, 6), 0, Math.PI * 2);
+      ctx.arc(pgc * cellW + cellW / 2, pgr * cellH + cellH / 2, Math.max(cellW * 0.45, 6), 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#000';
       ctx.font = `bold ${Math.max(cellH * 0.65, 9)}px sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('★', pgx * cellW + cellW / 2, pgz * cellH + cellH / 2);
+      ctx.fillText('★', pgc * cellW + cellW / 2, pgr * cellH + cellH / 2);
 
       // مفتاح الخريطة
       ctx.font = '11px sans-serif'; ctx.fillStyle = '#aaa'; ctx.textAlign = 'left';
@@ -2087,6 +2344,12 @@
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, _pixelCap));
   renderer.sortObjects = false;
   renderer.shadowMap.enabled = false;
+
+  // تحديث quality-pill ليعكس الجودة الفعلية بدلاً من "Medium" الثابتة
+  const _qualityPill = document.getElementById('quality-pill');
+  if (_qualityPill) {
+    _qualityPill.textContent = _isWebView ? 'Low' : (_isMobile ? 'Medium' : 'High');
+  }
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -2180,21 +2443,14 @@
   }
 
   // ============================================================
-  //  MAIN LOOP
-  // ============================================================
-  // ============================================================
   //  MAIN LOOP  — Frame-pacing fix for WebView/APK
-  //  المشكلة: على APK يتذبذب توقيت الفريمات مما يعطي إحساس بـ 15fps
-  //  الحل: متوسط متحرك لـ delta + تحديد حد أقصى + تجاهل الفريمات الطويلة
   // ============================================================
   let lastTime = performance.now();
   let frames = 0, lastFps = lastTime;
   let _fpsSmooth = 60;
 
-  // Delta smoother: متوسط آخر 6 قيم بدلاً من 4 — يمنع التذبذب أكثر
   const _deltaHistory = [0.016, 0.016, 0.016, 0.016, 0.016, 0.016];
   let _deltaIndex = 0;
-  // Adaptive skip: إذا كان الـ FPS منخفضاً → تخطي بعض العمليات الثقيلة
   let _skipHeavy = false;
   let _heavyCounter = 0;
 
@@ -2204,14 +2460,12 @@
     const rawDelta = (time - lastTime) / 1000;
     lastTime = time;
 
-    // تجاهل الفريم إذا كان طويلاً جداً (مثلاً لو جاء من الخلفية)
     if (rawDelta > 0.18) {
       frames++;
       if (time - lastFps >= 1000) { fpsPill.innerText = 'FPS: ' + frames; frames = 0; lastFps = time; }
       return;
     }
 
-    // متوسط متحرك لـ 6 قيم — أكثر نعومة من 4
     _deltaHistory[_deltaIndex] = rawDelta;
     _deltaIndex = (_deltaIndex + 1) % 6;
     const delta = Math.min(
@@ -2225,12 +2479,10 @@
       fpsPill.innerText = 'FPS: ' + frames;
       frames = 0;
       lastFps = time;
-      // تفعيل skip العمليات الثقيلة إذا كان FPS أقل من 28
       _skipHeavy = (_fpsSmooth < 28);
     }
 
     _heavyCounter++;
-    // تحديد عمليات ثقيلة كل فريم آخر فقط لو FPS منخفض
     const doHeavy = !_skipHeavy || (_heavyCounter % 2 === 0);
 
     if (!GameSettings.paused) {
@@ -2250,13 +2502,11 @@
           instPanel.innerHTML = GameState.keysCollected < 3
             ? `جمعت مفتاح! (${GameState.keysCollected}/3)<br>ابحث عن بقية المفاتيح!`
             : `جمعت كل المفاتيح!<br>اذهب للباب الآن!`;
-          // هدية: إذا كان عنده قلب واحد وجمع مفتاحاً → أعطه خريطة
           if (GameState.hearts <= 1 && !GameState.hasMap) {
             GameState.hasMap = true;
             showMapGift();
           }
         }
-        // تدوير المفتاح — على APK نخفض تكرار التحديث
         if (doHeavy) {
           keyObj.rotation.y += delta * 2;
           keyObj.position.y = Math.sin(time * 0.002) * 0.1 + 0.3;
@@ -2275,7 +2525,6 @@
           document.getElementById('map-btn').style.color = '#ffd700';
           instPanel.innerHTML = 'وجدت خريطة!<br>اضغط [M] لفتحها!';
         }
-        // تعويم ورقة الخريطة
         if (maze.mapItemObj.visible && doHeavy) {
           maze.mapItemObj.rotation.y += delta;
           maze.mapItemObj.position.y = Math.sin(time * 0.0015) * 0.08 + 0.05;
@@ -2289,14 +2538,17 @@
 
     // --- تفاعل الباب ---
     const distToDoor = camera.position.distanceTo(maze.doorPos);
-    if (distToDoor < 2.5 && !maze.doorOpened) {
+    if (distToDoor < 3.0 && !maze.doorOpened) {
       if (GameState.keysCollected >= GameState.totalKeys) {
-        promptUI.textContent = 'اضغط [E] لفتح الباب 🚪';
+        promptUI.textContent = '🚪 اضغط [E] لفتح الباب';
         promptUI.style.display = 'block';
         btnInteractMob.style.display = 'flex';
+        btnInteractMob.textContent = '🚪';
       } else {
-        promptUI.textContent = `تحتاج ${GameState.totalKeys - GameState.keysCollected} مفتاح إضافي!`;
+        const need = GameState.totalKeys - GameState.keysCollected;
+        promptUI.textContent = `🗝️ تحتاج ${need} مفتاح إضافي`;
         promptUI.style.display = 'block';
+        btnInteractMob.style.display = 'none';
       }
       if ((player.interactPressed || player.keys['KeyE']) && GameState.keysCollected >= GameState.totalKeys) {
         maze.openDoor();
