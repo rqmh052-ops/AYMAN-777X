@@ -240,6 +240,11 @@
   function lerp(a, b, t)        { return a + (b - a) * t; }
   function rand(min, max)       { return min + Math.random() * (max - min); }
 
+  // كشف البيئة مبكراً — يُستخدم في makeTexture والأضواء وغيرها
+  const _isMobile  = /Android|iPhone|iPad/i.test(navigator.userAgent);
+  const _isWebView = /; wv\)/i.test(navigator.userAgent)
+    || (_isMobile && navigator.userAgent.indexOf('Version/') === -1 && /Chrome\//.test(navigator.userAgent) && !('chrome' in window));
+
   // ============================================================
   //  TEXTURE GENERATOR  (داخل HTML - لا يحتاج ملف خارجي)
   // ============================================================
@@ -261,7 +266,8 @@
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(repeat, repeat);
-    tex.anisotropy = 4;
+    // على APK: anisotropy=1 يوفر memory bandwidth
+    tex.anisotropy = (_isMobile || (_isWebView)) ? 1 : 4;
     return tex;
   }
 
@@ -495,8 +501,10 @@
       this._placeMapItem();
 
       this.scene.background = new THREE.Color('#1a2213');
-      const fogFar = _isMobile ? 45 : 75;
-      this.scene.fog = new THREE.Fog('#1a2213', 14, fogFar);
+      // APK/WebView: تقليل مسافة الـ fog يعني رندر أشياء أقل → أداء أفضل
+      const fogFar = (_isWebView) ? 32 : (_isMobile ? 42 : 70);
+      const fogNear = (_isWebView) ? 10 : 14;
+      this.scene.fog = new THREE.Fog('#1a2213', fogNear, fogFar);
 
       this.scene.add(new THREE.AmbientLight('#ffffff', 1.4));
       this.scene.add(new THREE.HemisphereLight('#f2efc0', '#5f6632', 0.6));
@@ -510,8 +518,10 @@
           if (mapLayout[z][x] !== '#') lightPositions.push([x * this.cellSize, z * this.cellSize]);
         }
       }
-      const step = Math.floor(lightPositions.length / 3);
-      for (let i = 0; i < 3; i++) {
+      // على APK نضع مصباحاً واحداً فقط (يوفر GPU كثيراً) — على سطح المكتب 3
+      const _lightCount = (_isWebView) ? 1 : (_isMobile ? 2 : 3);
+      const step = Math.floor(lightPositions.length / _lightCount);
+      for (let i = 0; i < _lightCount; i++) {
         const [lx, lz] = lightPositions[Math.min(i * step + step / 2 | 0, lightPositions.length - 1)];
         const l = new THREE.PointLight('#ffe8a0', 1.8, 22, 2.0);
         l.position.set(lx, 2.5, lz);
@@ -542,10 +552,12 @@
         tooth2.position.set(0.1, 0.1, 0);
         keyGroup.add(head, shaft, tooth1, tooth2);
 
-        // ضوء صغير حول المفتاح
-        const kLight = new THREE.PointLight(keyColors[i], 0.8, 4);
-        kLight.position.y = 0.5;
-        keyGroup.add(kLight);
+        // ضوء صغير حول المفتاح — نتجنبه على APK
+        if (!(_isWebView)) {
+          const kLight = new THREE.PointLight(keyColors[i], 0.8, 4);
+          kLight.position.y = 0.5;
+          keyGroup.add(kLight);
+        }
 
         keyGroup.position.set(cell.x, 0, cell.z);
         keyGroup.userData = { isKey: true, keyIndex: i, collected: false, worldPos: { x: cell.x, z: cell.z } };
@@ -571,9 +583,12 @@
         line.position.set(0, 0.015, -0.06 + i * 0.06);
         paper.add(line);
       }
-      const mLight = new THREE.PointLight('#ffcc55', 0.6, 3);
-      mLight.position.y = 0.5;
-      mapGroup.add(paper, mLight);
+      if (!(_isWebView)) {
+        const mLight = new THREE.PointLight('#ffcc55', 0.6, 3);
+        mLight.position.y = 0.5;
+        mapGroup.add(mLight);
+      }
+      mapGroup.add(paper);
       mapGroup.position.set(cell.x, 0, cell.z);
       mapGroup.userData = { isMapItem: true, collected: false, worldPos: { x: cell.x, z: cell.z } };
       this.mapItemObj = mapGroup;
@@ -1642,21 +1657,7 @@
     }
 
     _applyHitFlash(model, flash) {
-      if (!model) return;
-      model.traverse(child => {
-        if (child.isMesh && child.material) {
-          if (flash > 0) {
-            child.material.emissive.setRGB(flash, flash * 0.3, flash * 0.3);
-            child.material.emissiveIntensity = 1.0 + flash * 2.0;
-          } else {
-            const orig = child.userData.origEmissive;
-            if (orig) {
-              child.material.emissive.copy(orig);
-              child.material.emissiveIntensity = child.userData.origEmissiveIntensity || 0.85;
-            }
-          }
-        }
-      });
+      // تأثير الاحمرار محذوف — الوجه يبقى كما هو عند الإطلاق
     }
 
     // ============================================================
@@ -1768,9 +1769,10 @@
         this._applyHitFlash(activeModel, this._hitFlash);
       }
 
-      // --- BFS Pathfinding: تحديث كل 0.35 ثانية ---
+      // --- BFS Pathfinding: تحديث كل 0.5 ثانية (كان 0.35) — يوفر CPU على APK ---
       this._pathTimer = (this._pathTimer || 0) + delta;
-      if (this._pathTimer >= 0.35 || !this._currentPath) {
+      const _bfsInterval = (_isWebView) ? 0.55 : 0.38;
+      if (this._pathTimer >= _bfsInterval || !this._currentPath) {
         this._pathTimer = 0;
         const eg = this._worldToGrid(this.group.position.x, this.group.position.z);
         const pg = this._worldToGrid(playerPos.x, playerPos.z);
@@ -2030,16 +2032,17 @@
     alpha: false
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  // موبايل: 1.5 يعطي وضوحاً جيداً بدون استنزاف GPU كامل (2x-3x)
-  const _isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-  renderer.setPixelRatio(_isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
+  // APK/WebView: pixel ratio منخفض لتوفير GPU
+  const _pixelCap  = _isWebView ? 1.0 : (_isMobile ? 1.25 : 1.5);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, _pixelCap));
   renderer.sortObjects = false;
+  renderer.shadowMap.enabled = false;
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(_isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, _pixelCap));
   });
 
   const maze = new SchoolMaze(scene);
@@ -2136,10 +2139,14 @@
   // ============================================================
   let lastTime = performance.now();
   let frames = 0, lastFps = lastTime;
+  let _fpsSmooth = 60;
 
-  // --- Delta smoother: نأخذ متوسط آخر 4 قيم لمنع الاهتزاز ---
-  const _deltaHistory = [0.016, 0.016, 0.016, 0.016];
+  // Delta smoother: متوسط آخر 6 قيم بدلاً من 4 — يمنع التذبذب أكثر
+  const _deltaHistory = [0.016, 0.016, 0.016, 0.016, 0.016, 0.016];
   let _deltaIndex = 0;
+  // Adaptive skip: إذا كان الـ FPS منخفضاً → تخطي بعض العمليات الثقيلة
+  let _skipHeavy = false;
+  let _heavyCounter = 0;
 
   function loop(time) {
     requestAnimationFrame(loop);
@@ -2148,24 +2155,38 @@
     lastTime = time;
 
     // تجاهل الفريم إذا كان طويلاً جداً (مثلاً لو جاء من الخلفية)
-    if (rawDelta > 0.15) {
+    if (rawDelta > 0.18) {
       frames++;
       if (time - lastFps >= 1000) { fpsPill.innerText = 'FPS: ' + frames; frames = 0; lastFps = time; }
       return;
     }
 
-    // متوسط متحرك للـ delta يمنع التذبذب
+    // متوسط متحرك لـ 6 قيم — أكثر نعومة من 4
     _deltaHistory[_deltaIndex] = rawDelta;
-    _deltaIndex = (_deltaIndex + 1) % 4;
-    const delta = Math.min((_deltaHistory[0] + _deltaHistory[1] + _deltaHistory[2] + _deltaHistory[3]) / 4, 0.05);
+    _deltaIndex = (_deltaIndex + 1) % 6;
+    const delta = Math.min(
+      (_deltaHistory[0]+_deltaHistory[1]+_deltaHistory[2]+_deltaHistory[3]+_deltaHistory[4]+_deltaHistory[5]) / 6,
+      0.05
+    );
 
     frames++;
-    if (time - lastFps >= 1000) { fpsPill.innerText = 'FPS: ' + frames; frames = 0; lastFps = time; }
+    if (time - lastFps >= 1000) {
+      _fpsSmooth = frames;
+      fpsPill.innerText = 'FPS: ' + frames;
+      frames = 0;
+      lastFps = time;
+      // تفعيل skip العمليات الثقيلة إذا كان FPS أقل من 28
+      _skipHeavy = (_fpsSmooth < 28);
+    }
+
+    _heavyCounter++;
+    // تحديد عمليات ثقيلة كل فريم آخر فقط لو FPS منخفض
+    const doHeavy = !_skipHeavy || (_heavyCounter % 2 === 0);
 
     if (!GameSettings.paused) {
       player.update(delta, time);
       enemy.update(delta, camera.position, player);
-      checkShotHit(time);
+      if (doHeavy) checkShotHit(time);
 
       // --- جمع المفاتيح ---
       for (const keyObj of maze.keyObjects) {
@@ -2185,9 +2206,11 @@
             showMapGift();
           }
         }
-        // تدوير المفتاح
-        keyObj.rotation.y += delta * 2;
-        keyObj.position.y = Math.sin(time * 0.002) * 0.1 + 0.3;
+        // تدوير المفتاح — على APK نخفض تكرار التحديث
+        if (doHeavy) {
+          keyObj.rotation.y += delta * 2;
+          keyObj.position.y = Math.sin(time * 0.002) * 0.1 + 0.3;
+        }
       }
 
       // --- جمع الخريطة (آيتم على الأرض) ---
@@ -2203,7 +2226,7 @@
           instPanel.innerHTML = 'وجدت خريطة!<br>اضغط [M] لفتحها!';
         }
         // تعويم ورقة الخريطة
-        if (maze.mapItemObj.visible) {
+        if (maze.mapItemObj.visible && doHeavy) {
           maze.mapItemObj.rotation.y += delta;
           maze.mapItemObj.position.y = Math.sin(time * 0.0015) * 0.08 + 0.05;
         }
