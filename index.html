@@ -1639,7 +1639,7 @@
         // الحل: إزالة القلب العمودي والاعتماد على الدوران الصحيح
         if (longestAxis === 'x') {
           // البرميل على محور X → wrapper يدور -90° على Y لتوجيه الفوهة للأمام
-          wrapper.rotation.y = Math.PI / 2;
+          wrapper.rotation.y = Math.PI / 2 + Math.PI;
           // بدون قلب Z — الزناد يظل في وضعه الطبيعي للأسفل
           model.rotation.set(0.06, 0, 0);
         } else if (longestAxis === 'y') {
