@@ -1636,23 +1636,25 @@
 
         const wrapper = new THREE.Group();
 
-        // ===== 4 احتمالات للتوجيه — يتحكم فيها الزر =====
+        // ===== 8 احتمالات شاملة لكل المحاور =====
         const _ORIENTATIONS = [
-          { label: '1 / 4 — Y = +90°',      wy:  Math.PI / 2,           rx: 0.06, rz: 0 },
-          { label: '2 / 4 — Y = -90°',      wy: -Math.PI / 2,           rx: 0.06, rz: 0 },
-          { label: '3 / 4 — Y = +90° + Z↑', wy:  Math.PI / 2,           rx: 0.06, rz: Math.PI },
-          { label: '4 / 4 — Y = -90° + Z↑', wy: -Math.PI / 2,           rx: 0.06, rz: Math.PI },
+          { label: '1/8', wx:  0,              wy:  Math.PI/2,  wz: 0 },
+          { label: '2/8', wx:  0,              wy: -Math.PI/2,  wz: 0 },
+          { label: '3/8', wx:  0,              wy:  Math.PI,    wz: 0 },
+          { label: '4/8', wx:  0,              wy:  0,          wz: 0 },
+          { label: '5/8', wx:  Math.PI/2,      wy:  0,          wz: 0 },
+          { label: '6/8', wx: -Math.PI/2,      wy:  0,          wz: 0 },
+          { label: '7/8', wx:  Math.PI/2,      wy:  Math.PI/2,  wz: 0 },
+          { label: '8/8', wx: -Math.PI/2,      wy:  Math.PI/2,  wz: 0 },
         ];
         let _oriIdx = 0;
 
         function _applyOrientation(idx) {
           const o = _ORIENTATIONS[idx];
-          wrapper.rotation.set(0, o.wy, 0);
-          model.rotation.set(o.rx, 0, o.rz);
-          const btn  = document.getElementById('orientation-btn');
-          const hint = document.getElementById('orientation-hint');
-          if (btn)  btn.textContent  = '🔄 احتمال ' + o.label + ' — اضغط للتبديل';
-          if (hint) hint.textContent = o.label;
+          wrapper.rotation.set(o.wx, o.wy, o.wz);
+          model.rotation.set(0, 0, 0);
+          const btn = document.getElementById('orientation-btn');
+          if (btn) btn.textContent = '🔄 احتمال ' + o.label + ' — اضغط للتبديل';
         }
 
         _applyOrientation(_oriIdx);
