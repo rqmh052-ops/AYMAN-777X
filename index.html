@@ -141,6 +141,157 @@
       #instructions-panel { top: 38px; left: 6px; max-width: 150px; font-size: 10px; padding: 7px 9px; }
       .settings-card { width: calc(100vw - 16px); padding: 14px; max-height: calc(100vh - 16px); }
     }
+
+    /* ===== قائمة تبديل الجودة ===== */
+    #quality-pill {
+      cursor: pointer;
+      position: relative;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    #quality-pill:hover {
+      background: rgba(30,40,28,0.97);
+      box-shadow: 0 0 0 1px rgba(237,213,106,0.35);
+    }
+    #quality-pill:active { transform: scale(0.97); }
+
+    /* السهم الصغير */
+    #quality-pill::after {
+      content: '';
+      display: inline-block;
+      width: 0; height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--accent);
+      margin-right: 4px;
+      margin-top: 1px;
+      transition: transform 0.2s;
+      vertical-align: middle;
+    }
+    #quality-pill.open::after { transform: rotate(180deg); }
+
+    /* القائمة المنبثقة */
+    #quality-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      min-width: 155px;
+      background: rgba(10,14,10,0.97);
+      border: 1px solid rgba(237,213,106,0.30);
+      border-radius: 12px;
+      padding: 6px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      gap: 3px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      animation: qmenu-in 0.15s ease;
+    }
+    #quality-menu.open { display: flex; }
+
+    @keyframes qmenu-in {
+      from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)  scale(1); }
+    }
+
+    /* عنوان القائمة */
+    #quality-menu .qmenu-title {
+      font-size: 9px;
+      font-weight: 700;
+      color: rgba(237,213,106,0.5);
+      text-align: center;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 4px 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 2px;
+    }
+
+    /* كل خيار جودة */
+    .qmenu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.12s, border-color 0.12s;
+      direction: rtl;
+    }
+    .qmenu-item:hover {
+      background: rgba(237,213,106,0.08);
+      border-color: rgba(237,213,106,0.18);
+    }
+    .qmenu-item.active {
+      background: rgba(237,213,106,0.13);
+      border-color: rgba(237,213,106,0.40);
+    }
+    .qmenu-item.active .qitem-name { color: var(--accent); }
+
+    /* الدائرة الملونة (مؤشر الأداء) */
+    .qitem-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: 0 0 5px currentColor;
+    }
+    .qitem-dot.low    { background: #ff4444; color: #ff4444; }
+    .qitem-dot.medium { background: #ffaa00; color: #ffaa00; }
+    .qitem-dot.high   { background: #44ccff; color: #44ccff; }
+    .qitem-dot.ultra  { background: #aa44ff; color: #aa44ff; }
+
+    /* اسم مستوى الجودة */
+    .qitem-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+
+    /* الوصف القصير */
+    .qitem-desc {
+      font-size: 9px;
+      color: rgba(196,207,190,0.55);
+      line-height: 1.3;
+      text-align: left;
+      direction: ltr;
+    }
+
+    /* شارة "تلقائي" */
+    .qitem-auto {
+      font-size: 8px;
+      font-weight: 700;
+      background: rgba(237,213,106,0.18);
+      color: var(--accent);
+      border-radius: 4px;
+      padding: 1px 4px;
+      letter-spacing: 0.04em;
+    }
+
+    /* إشعار التغيير */
+    #quality-toast {
+      position: fixed;
+      top: 48px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-4px);
+      background: rgba(10,14,10,0.96);
+      border: 1px solid rgba(237,213,106,0.35);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 16px;
+      border-radius: 99px;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.25s, transform 0.25s;
+      white-space: nowrap;
+    }
+    #quality-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   </style>
 </head>
 <body>
@@ -155,7 +306,48 @@
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
         </button>
-        <div class="pill" id="quality-pill">Medium</div>
+        <div class="pill" id="quality-pill" role="button" aria-haspopup="true" aria-expanded="false" tabindex="0">
+          <span id="quality-label">Medium</span>
+          <!-- القائمة المنبثقة -->
+          <div id="quality-menu" role="menu">
+            <div class="qmenu-title">جودة الجرافيك</div>
+
+            <div class="qmenu-item" data-tier="low" role="menuitem">
+              <div class="qitem-dot low"></div>
+              <div style="flex:1;min-width:0">
+                <div class="qitem-name">Low</div>
+                <div class="qitem-desc">256px · أجهزة ضعيفة</div>
+              </div>
+            </div>
+
+            <div class="qmenu-item" data-tier="medium" role="menuitem">
+              <div class="qitem-dot medium"></div>
+              <div style="flex:1;min-width:0">
+                <div class="qitem-name">Medium</div>
+                <div class="qitem-desc">512px · موبايل عادي</div>
+              </div>
+            </div>
+
+            <div class="qmenu-item" data-tier="high" role="menuitem">
+              <div class="qitem-dot high"></div>
+              <div style="flex:1;min-width:0">
+                <div class="qitem-name">High</div>
+                <div class="qitem-desc">1024px · PC / موبايل قوي</div>
+              </div>
+            </div>
+
+            <div class="qmenu-item" data-tier="ultra" role="menuitem">
+              <div class="qitem-dot ultra"></div>
+              <div style="flex:1;min-width:0">
+                <div class="qitem-name">Ultra</div>
+                <div class="qitem-desc">2048px · GPU قوية</div>
+              </div>
+            </div>
+
+          </div><!-- /quality-menu -->
+        </div>
+        <!-- إشعار التغيير -->
+        <div id="quality-toast"></div>
         <div class="pill" id="fps-pill">FPS: 0</div>
       </div>
       <div id="instructions-panel">اجمع 3 مفاتيح <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#edd56a" stroke-width="2.5" stroke-linecap="round" style="vertical-align:middle"><circle cx="7.5" cy="7.5" r="4.5"/><line x1="11" y1="11" x2="21" y2="21"/><line x1="18" y1="18" x2="21" y2="15"/><line x1="15" y1="21" x2="15" y2="18"/></svg><br>لفتح الباب والهروب!</div>
@@ -301,28 +493,332 @@
     || (_isMobile && navigator.userAgent.indexOf('Version/') === -1 && /Chrome\//.test(navigator.userAgent) && !('chrome' in window));
 
   // ============================================================
-  //  TEXTURE GENERATOR  (داخل HTML - لا يحتاج ملف خارجي)
+  //  QUALITY AUTO-DETECT  — كشف قوة الجهاز تلقائياً
   // ============================================================
-  function makeTexture({ size = 256, base = '#20261d', detail = '#313b2a', accent = '#0a0c08', repeat = 8 } = {}) {
+  (function detectQuality() {
+    let tier = 'medium'; // الافتراضي
+
+    if (_isWebView) { tier = 'low'; }
+    else {
+      try {
+        const gl = document.createElement('canvas').getContext('webgl');
+        if (gl) {
+          const ext = gl.getExtension('WEBGL_debug_renderer_info');
+          const gpuStr = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL).toLowerCase() : '';
+          if (/rtx\s*[2-9]\d{2,}|rtx\s*[1-9]\d{3,}|rx\s*[5-9]\d{2,}|rx\s*[67][0-9]{3}|a[0-9]{3,4}m?x|m[123]\s*(pro|max|ultra)/i.test(gpuStr)) tier = 'ultra';
+          else if (/gtx\s*10[6-9]0|gtx\s*1[1-9]\d0|radeon\s*r[79]|rx\s*[45][0-9]{2}|apple\s*gpu|iris\s*(xe|plus)/i.test(gpuStr)) tier = 'high';
+          else if (_isMobile) tier = (navigator.hardwareConcurrency >= 8 && navigator.deviceMemory >= 6) ? 'high' : ((navigator.hardwareConcurrency >= 4) ? 'medium' : 'low');
+          else tier = (navigator.hardwareConcurrency >= 4) ? 'high' : 'medium';
+        }
+      } catch(e) {
+        tier = _isMobile ? 'low' : 'medium';
+      }
+    }
+
+    // مواصفات كل مستوى جودة
+    window.GFX = {
+      tier,
+      texSize:  tier === 'ultra' ? 2048 : tier === 'high' ? 1024 : tier === 'medium' ? 512 : 256,
+      aniso:    tier === 'ultra' ? 16   : tier === 'high' ? 8    : tier === 'medium' ? 4   : 1,
+      pixelRatio: tier === 'ultra' ? 2.0 : tier === 'high' ? 1.5 : tier === 'medium' ? 1.25 : 1.0,
+      antialias:  tier === 'ultra' || tier === 'high',
+      detail:   tier === 'ultra' ? 4 : tier === 'high' ? 3 : tier === 'medium' ? 2 : 1,
+    };
+    console.log('[GFX] Tier:', tier, '| Tex:', GFX.texSize, '| Aniso:', GFX.aniso, '| PR:', GFX.pixelRatio);
+  })();
+
+  // ============================================================
+  //  TEXTURE GENERATOR  — متعدد الطبقات بدقة عالية
+  // ============================================================
+  function makeTexture({ size, base = '#20261d', detail = '#313b2a', accent = '#0a0c08', repeat = 8 } = {}) {
+    const sz  = size || GFX.texSize;
+    const det = GFX.detail;
     const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = size;
+    canvas.width = canvas.height = sz;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = base; ctx.fillRect(0, 0, size, size);
-    for (let i = 0; i < size * size * 0.1; i++) {
-      ctx.globalAlpha = Math.random() * 0.2 + 0.04;
-      ctx.fillStyle = Math.random() > 0.5 ? detail : accent;
-      ctx.beginPath(); ctx.arc(Math.random() * size, Math.random() * size, rand(1, 4), 0, Math.PI * 2); ctx.fill();
+
+    // طبقة 1: لون أساسي مع تدرج خفيف
+    const grd = ctx.createLinearGradient(0, 0, sz, sz);
+    grd.addColorStop(0, base);
+    grd.addColorStop(0.5, detail);
+    grd.addColorStop(1, accent);
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, sz, sz);
+
+    // طبقة 2: ضوضاء نقطية دقيقة
+    const pts = Math.floor(sz * sz * (det >= 3 ? 0.18 : 0.10));
+    for (let i = 0; i < pts; i++) {
+      ctx.globalAlpha = Math.random() * 0.22 + 0.03;
+      ctx.fillStyle = Math.random() > 0.55 ? detail : accent;
+      ctx.beginPath();
+      ctx.arc(Math.random() * sz, Math.random() * sz, rand(0.5, det >= 3 ? 4 : 2.5), 0, Math.PI * 2);
+      ctx.fill();
     }
-    ctx.globalAlpha = 0.12;
-    for (let i = 0; i < 24; i++) {
-      ctx.fillStyle = Math.random() > 0.7 ? '#6a2b24' : '#ffffff';
-      ctx.fillRect(rand(0, size), rand(0, size), rand(18, 64), rand(1, 5));
+
+    // طبقة 3: خطوط أفقية (تشبه الإسمنت / الطلاء)
+    ctx.globalAlpha = 0.10;
+    for (let i = 0; i < (det >= 2 ? 36 : 18); i++) {
+      ctx.fillStyle = Math.random() > 0.65 ? '#7a3a30' : '#ffffff';
+      ctx.fillRect(rand(0, sz), rand(0, sz), rand(20, sz * 0.5), rand(1, det >= 3 ? 4 : 2));
     }
+
+    // طبقة 4 (High/Ultra): ضوضاء ناعمة جداً
+    if (det >= 3) {
+      ctx.globalAlpha = 0.05;
+      for (let i = 0; i < sz * 10; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#ffffff' : '#000000';
+        ctx.fillRect(Math.random() * sz, Math.random() * sz, 1, 1);
+      }
+    }
+
+    // طبقة 5 (Ultra): تشققات وعيوب خفية
+    if (det >= 4) {
+      ctx.globalAlpha = 0.06;
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 0.8;
+      for (let i = 0; i < 8; i++) {
+        ctx.beginPath();
+        ctx.moveTo(rand(0, sz), rand(0, sz));
+        ctx.lineTo(rand(0, sz), rand(0, sz));
+        ctx.stroke();
+      }
+    }
+
+    ctx.globalAlpha = 1;
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(repeat, repeat);
-    // على APK: anisotropy=1 يوفر memory bandwidth
-    tex.anisotropy = (_isMobile || (_isWebView)) ? 1 : 4;
+    tex.anisotropy = GFX.aniso;
+    tex.generateMipmaps = true;
+    return tex;
+  }
+
+  // ============================================================
+  //  FLOOR TEXTURE  — بلاطات مدرسية محسّنة
+  // ============================================================
+  function makeFloorTexture() {
+    const sz  = GFX.texSize;
+    const det = GFX.detail;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = sz;
+    const ctx = canvas.getContext('2d');
+
+    // خلفية أساسية
+    ctx.fillStyle = '#90896a';
+    ctx.fillRect(0, 0, sz, sz);
+
+    // ضوضاء ناعمة
+    for (let i = 0; i < sz * sz * 0.14; i++) {
+      ctx.globalAlpha = rand(0.02, 0.13);
+      const v = Math.random();
+      ctx.fillStyle = v > 0.7 ? '#c8c09a' : (v > 0.4 ? '#706848' : '#3a3625');
+      ctx.beginPath();
+      ctx.arc(Math.random() * sz, Math.random() * sz, rand(0.5, det >= 3 ? 4.5 : 2.5), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // شبكة البلاطات الرئيسية
+    const tile = Math.floor(sz / 4);
+    ctx.globalAlpha = 0.40;
+    ctx.strokeStyle = '#1e1c12';
+    ctx.lineWidth = det >= 3 ? 4 : 2;
+    for (let i = 0; i <= sz; i += tile) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, sz); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(sz, i); ctx.stroke();
+    }
+
+    // تدرج داخل كل بلاطة (Medium+)
+    if (det >= 2) {
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 4; col++) {
+          ctx.globalAlpha = 0.06;
+          const tx = col * tile + 3, ty = row * tile + 3;
+          const tg = ctx.createLinearGradient(tx, ty, tx + tile - 6, ty + tile - 6);
+          tg.addColorStop(0, '#ffffff');
+          tg.addColorStop(1, '#000000');
+          ctx.fillStyle = tg;
+          ctx.fillRect(tx, ty, tile - 6, tile - 6);
+        }
+      }
+    }
+
+    // خطوط فاصلة رفيعة داخل البلاطات (High+)
+    if (det >= 3) {
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = '#0a0905';
+      ctx.lineWidth = 1;
+      const half = tile / 2;
+      for (let i = half; i < sz; i += tile) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, sz); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(sz, i); ctx.stroke();
+      }
+    }
+
+    // خدوش وبقع (High+)
+    if (det >= 3) {
+      ctx.globalAlpha = 0.055;
+      ctx.strokeStyle = '#0a0900';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 14; i++) {
+        ctx.beginPath();
+        ctx.moveTo(rand(0, sz), rand(0, sz));
+        ctx.lineTo(rand(0, sz), rand(0, sz));
+        ctx.stroke();
+      }
+    }
+
+    // بقع شحوم/عمر (Ultra)
+    if (det >= 4) {
+      for (let i = 0; i < 6; i++) {
+        ctx.globalAlpha = 0.04;
+        const gx = rand(0, sz), gy = rand(0, sz);
+        const gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, rand(sz*0.04, sz*0.12));
+        gr.addColorStop(0, '#2a2418');
+        gr.addColorStop(1, 'transparent');
+        ctx.fillStyle = gr;
+        ctx.fillRect(0, 0, sz, sz);
+      }
+    }
+
+    ctx.globalAlpha = 1;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(12, 12);
+    tex.anisotropy = GFX.aniso;
+    tex.generateMipmaps = true;
+    return tex;
+  }
+
+  // ============================================================
+  //  WALL TEXTURE  — جدران مدرسية محسّنة
+  // ============================================================
+  function makeWallTexture() {
+    const sz  = GFX.texSize;
+    const det = GFX.detail;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = sz;
+    const ctx = canvas.getContext('2d');
+
+    // لون أساسي للجدار
+    ctx.fillStyle = '#242d1e';
+    ctx.fillRect(0, 0, sz, sz);
+
+    // ضوضاء نقطية
+    for (let i = 0; i < sz * sz * 0.16; i++) {
+      ctx.globalAlpha = rand(0.03, 0.20);
+      const v = Math.random();
+      ctx.fillStyle = v > 0.65 ? '#3a4a2a' : (v > 0.35 ? '#141d0e' : '#080a06');
+      ctx.beginPath();
+      ctx.arc(Math.random() * sz, Math.random() * sz, rand(0.5, det >= 3 ? 5 : 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // طبقة خطوط أفقية للبناء (طلاء قديم)
+    ctx.globalAlpha = 0.12;
+    for (let i = 0; i < (det >= 2 ? 40 : 20); i++) {
+      ctx.fillStyle = Math.random() > 0.6 ? '#ffffff' : '#6a4030';
+      ctx.fillRect(rand(0, sz), rand(0, sz), rand(15, sz * 0.6), rand(1, det >= 3 ? 3 : 2));
+    }
+
+    // كتل حجرية/إسمنتية (Medium+)
+    if (det >= 2) {
+      const blockH = Math.floor(sz / 5);
+      const blockW = Math.floor(sz / 3);
+      ctx.globalAlpha = 0.20;
+      ctx.strokeStyle = '#060805';
+      ctx.lineWidth = det >= 3 ? 3 : 2;
+      for (let row = 0; row <= 5; row++) {
+        ctx.beginPath(); ctx.moveTo(0, row * blockH); ctx.lineTo(sz, row * blockH); ctx.stroke();
+      }
+      for (let col = 0; col <= 3; col++) {
+        const off = col % 2 === 0 ? 0 : blockW * 0.5;
+        const x = (col * blockW + off) % (sz + blockW);
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, sz); ctx.stroke();
+      }
+    }
+
+    // تفاصيل دقيقة (High+)
+    if (det >= 3) {
+      ctx.globalAlpha = 0.04;
+      for (let i = 0; i < sz * 6; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#ffffff' : '#000000';
+        ctx.fillRect(Math.random() * sz, Math.random() * sz, 1, 1);
+      }
+    }
+
+    // بقع رطوبة وتشققات (High+)
+    if (det >= 3) {
+      ctx.globalAlpha = 0.07;
+      for (let i = 0; i < 5; i++) {
+        const gx = rand(0, sz), gy = rand(0, sz);
+        const gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, rand(sz*0.05, sz*0.14));
+        gr.addColorStop(0, '#102808');
+        gr.addColorStop(1, 'transparent');
+        ctx.fillStyle = gr;
+        ctx.fillRect(0, 0, sz, sz);
+      }
+    }
+
+    // تشققات خفية (Ultra)
+    if (det >= 4) {
+      ctx.globalAlpha = 0.055;
+      ctx.strokeStyle = '#030402';
+      ctx.lineWidth = 0.7;
+      for (let i = 0; i < 10; i++) {
+        ctx.beginPath();
+        ctx.moveTo(rand(0, sz), rand(0, sz));
+        ctx.lineTo(rand(0, sz), rand(0, sz));
+        ctx.stroke();
+      }
+    }
+
+    ctx.globalAlpha = 1;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(6, 3);
+    tex.anisotropy = GFX.aniso;
+    tex.generateMipmaps = true;
+    return tex;
+  }
+
+  // ============================================================
+  //  CEILING TEXTURE  — سقف محسّن
+  // ============================================================
+  function makeCeilTexture() {
+    const sz  = GFX.texSize;
+    const det = GFX.detail;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = sz;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#1a1f14';
+    ctx.fillRect(0, 0, sz, sz);
+
+    for (let i = 0; i < sz * sz * 0.10; i++) {
+      ctx.globalAlpha = rand(0.02, 0.12);
+      ctx.fillStyle = Math.random() > 0.5 ? '#252e1c' : '#0a0c08';
+      ctx.beginPath();
+      ctx.arc(Math.random() * sz, Math.random() * sz, rand(0.5, det >= 3 ? 3 : 2), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (det >= 2) {
+      const panel = Math.floor(sz / 3);
+      ctx.globalAlpha = 0.15;
+      ctx.strokeStyle = '#0a0c08';
+      ctx.lineWidth = 2;
+      for (let i = 0; i <= sz; i += panel) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, sz); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(sz, i); ctx.stroke();
+      }
+    }
+
+    ctx.globalAlpha = 1;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(8, 8);
+    tex.anisotropy = GFX.aniso;
+    tex.generateMipmaps = true;
     return tex;
   }
 
@@ -637,16 +1133,22 @@
       this.spawn = new THREE.Vector3();
       this.doorPos = new THREE.Vector3();
       this.wallMat = new THREE.MeshStandardMaterial({
-        color: '#8f9a81',
-        map: makeTexture({ base: '#242d1d', detail: '#38452f', accent: '#0b0d08', repeat: 6 }),
-        roughness: 0.96
+        color: '#9aaa88',
+        map: makeWallTexture(),
+        roughness: 0.94,
+        metalness: 0.03,
       });
       this.floorMat = new THREE.MeshStandardMaterial({
-        color: '#b3b38c',
-        map: makeTexture({ base: '#8d8b5e', detail: '#bbb28a', accent: '#60603d', repeat: 10 }),
-        roughness: 1
+        color: '#c4be94',
+        map: makeFloorTexture(),
+        roughness: 0.90,
+        metalness: 0.02,
       });
-      this.ceilMat = new THREE.MeshStandardMaterial({ color: '#3a402b', roughness: 1 });
+      this.ceilMat = new THREE.MeshStandardMaterial({
+        color: '#3a4030',
+        map: makeCeilTexture(),
+        roughness: 0.98,
+      });
     }
 
     build() {
@@ -674,6 +1176,7 @@
 
       this.keyObjects = [];
       this.mapItemObj = null;
+      this.enemyColliders = null; // يُملأ عند فتح الباب
 
       for (let z = 0; z < rows; z++) {
         for (let x = 0; x < cols; x++) {
@@ -943,7 +1446,19 @@
     openDoor() {
       if (this.doorOpened) return;
       this.doorOpened = true;
+      // ✅ FIX1: حذف collider الباب — اللاعب يعبر بحرية
       this.colliders = this.colliders.filter(c => c !== this.doorCollider);
+
+      // ✅ FIX2: بناء enemyColliders منفصلة تحتوي حاجز إضافي يمنع العدو من الدخول
+      const cs = this.cellSize;
+      this.enemyColliders = [...this.colliders];
+      // حاجز عريض أمام مدخل الغرفة يمنع العدو فقط
+      this.enemyColliders.push({
+        min: { x: this.doorPos.x - cs, z: this.doorPos.z - 0.3 },
+        max: { x: this.doorPos.x + cs, z: this.doorPos.z + cs * 0.8 }
+      });
+
+      // تحريك الباب بصرياً
       let rot = 0;
       const target = Math.PI / 2;
       const animate = () => {
@@ -1160,8 +1675,18 @@
       if (dir.lengthSq() > 0.01) {
         const nX = this.camera.position.x + dir.x * this.speed * delta;
         const nZ = this.camera.position.z + dir.z * this.speed * delta;
-        if (!this.checkCollision(nX, this.camera.position.z)) this.camera.position.x = nX;
-        if (!this.checkCollision(this.camera.position.x, nZ)) this.camera.position.z = nZ;
+        // ✅ FIX6: فحص المحورين منفصلَين + فحص القطري لمنع corner cutting
+        const canX = !this.checkCollision(nX, this.camera.position.z);
+        const canZ = !this.checkCollision(this.camera.position.x, nZ);
+        if (canX) this.camera.position.x = nX;
+        if (canZ) this.camera.position.z = nZ;
+        // إذا كلا المحورَين ممنوعَين — حاول حركة أصغر (slide على الجدار)
+        if (!canX && !canZ) {
+          const slideX = this.camera.position.x + dir.x * this.speed * delta * 0.3;
+          const slideZ = this.camera.position.z + dir.z * this.speed * delta * 0.3;
+          if (!this.checkCollision(slideX, this.camera.position.z)) this.camera.position.x = slideX;
+          if (!this.checkCollision(this.camera.position.x, slideZ)) this.camera.position.z = slideZ;
+        }
         this.bob += delta * this.speed * 2.0;
       }
 
@@ -1842,7 +2367,10 @@
 
     _enemyCollides(x, z) {
       const r = this.ENEMY_RADIUS;
-      for (const c of this.maze.colliders) {
+      // ✅ FIX3: استخدام enemyColliders إذا كانت موجودة (بعد فتح الباب)
+      // تحتوي على حاجز الغرفة الذي يمنع العدو من الدخول
+      const colliders = this.maze.enemyColliders || this.maze.colliders;
+      for (const c of colliders) {
         if (x + r > c.min.x && x - r < c.max.x && z + r > c.min.z && z - r < c.max.z) return true;
       }
       return false;
@@ -2007,7 +2535,6 @@
     _buildGrid() {
       this._gridRows = NavGraph.rows;
       this._gridCols = NavGraph.cols;
-      // نستخدم NavGraph.walkable مباشرة (نفس المصدر للـ collision والـ pathfinding)
       this._grid = [];
       for (let r = 0; r < this._gridRows; r++) {
         this._grid[r] = [];
@@ -2016,6 +2543,31 @@
         }
       }
       console.log(`[NavGraph→AI] Grid ${this._gridRows}×${this._gridCols} loaded from NavGraph ✅`);
+    }
+
+    // ✅ FIX4: عند فتح الباب — نحجب خلايا الغرفة في grid العدو
+    // العدو لا يرى الغرفة كهدف قابل للوصول فلا يحاول يدخلها
+    refreshGridForDoor() {
+      if (!this._grid) return;
+      const cs = this.maze.cellSize;
+      const doorR = Math.round(this.maze.doorPos.z / cs);
+      const doorC = Math.round(this.maze.doorPos.x / cs);
+      // احجب خلية الباب وكل خلايا الغرفة خلفه (Z أصغر = rows أقل)
+      for (let r = 0; r <= doorR; r++) {
+        for (let c = doorC - 2; c <= doorC + 2; c++) {
+          if (r >= 0 && r < this._gridRows && c >= 0 && c < this._gridCols) {
+            this._grid[r][c] = false;
+          }
+        }
+      }
+      // احجب خلية الباب نفسها بشكل مؤكد
+      if (doorR >= 0 && doorR < this._gridRows && doorC >= 0 && doorC < this._gridCols) {
+        this._grid[doorR][doorC] = false;
+      }
+      // إعادة حساب المسار فوراً
+      this._currentPath = null;
+      this._pathTimer = 999;
+      console.log(`[Enemy] Grid updated: door area blocked at (${doorR},${doorC}) ✅`);
     }
 
     _worldToGrid(wx, wz) {
@@ -2031,7 +2583,6 @@
       const cols = this._gridCols;
       if (!this._grid) return null;
       const visited = new Uint8Array(rows * cols);
-      // استخدم Map بدلاً من Int32Array لتجنب مشكلة fill(-1)
       const parent  = {};
       const queue   = [];
       const idx = (gx, gz) => gz * cols + gx;
@@ -2041,10 +2592,25 @@
       startGx = clampGx(startGx); startGz = clampGz(startGz);
       goalGx  = clampGx(goalGx);  goalGz  = clampGz(goalGz);
 
+      // ✅ FIX5: إذا الهدف (اللاعب) في خلية محجوبة في grid العدو
+      // ابحث عن أقرب خلية مفتوحة مجاورة كهدف بديل
+      if (!this._grid[goalGz] || !this._grid[goalGz][goalGx]) {
+        let found = false;
+        for (let d = 1; d <= 4 && !found; d++) {
+          for (const [dx, dz] of [[d,0],[-d,0],[0,d],[0,-d],[d,d],[-d,-d],[d,-d],[-d,d]]) {
+            const nx = clampGx(goalGx + dx), nz = clampGz(goalGz + dz);
+            if (this._grid[nz] && this._grid[nz][nx]) {
+              goalGx = nx; goalGz = nz; found = true; break;
+            }
+          }
+        }
+        if (!found) return null;
+      }
+
       if (!this._grid[startGz][startGx]) return null;
       const startIdx = idx(startGx, startGz);
       visited[startIdx] = 1;
-      parent[startIdx] = -1; // نقطة البداية
+      parent[startIdx] = -1;
       queue.push([startGx, startGz]);
       let head = 0;
 
@@ -2053,7 +2619,6 @@
         const [cx, cz] = queue[head++];
         const curIdx = idx(cx, cz);
         if (cx === goalGx && cz === goalGz) {
-          // تتبع المسار
           let path = [];
           let cur = curIdx;
           while (cur !== -1) {
@@ -2075,7 +2640,7 @@
           queue.push([nx, nz]);
         }
       }
-      return null; // لا مسار
+      return null;
     }
 
     update(delta, playerPos, playerRef) {
@@ -2157,8 +2722,18 @@
         const spd = this._currentEnemySpeed;
         const newX = ex + nx * spd * delta;
         const newZ = ez + nz * spd * delta;
-        if (!this._enemyCollides(newX, ez)) this.group.position.x = newX;
-        if (!this._enemyCollides(this.group.position.x, newZ)) this.group.position.z = newZ;
+        // ✅ FIX7: منع corner cutting للعدو
+        const canX = !this._enemyCollides(newX, ez);
+        const canZ = !this._enemyCollides(ex, newZ);
+        if (canX) this.group.position.x = newX;
+        if (canZ) this.group.position.z = newZ;
+        // Slide على الجدار إذا كلا المحورَين ممنوعَين
+        if (!canX && !canZ) {
+          const sx = ex + nx * spd * delta * 0.25;
+          const sz = ez + nz * spd * delta * 0.25;
+          if (!this._enemyCollides(sx, ez)) this.group.position.x = sx;
+          if (!this._enemyCollides(ex, sz)) this.group.position.z = sz;
+        }
         this.group.rotation.y = Math.atan2(playerPos.x - this.group.position.x, playerPos.z - this.group.position.z);
       }
 
@@ -2358,7 +2933,7 @@
 
   const renderer = new THREE.WebGLRenderer({
     canvas: document.getElementById('game'),
-    antialias: false,
+    antialias: GFX.antialias,
     powerPreference: 'high-performance',
     preserveDrawingBuffer: false,
     stencil: false,
@@ -2366,27 +2941,157 @@
     alpha: false
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  // APK/WebView: pixel ratio منخفض لتوفير GPU
-  const _pixelCap  = _isWebView ? 1.0 : (_isMobile ? 1.25 : 1.5);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, _pixelCap));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, GFX.pixelRatio));
   renderer.sortObjects = false;
   renderer.shadowMap.enabled = false;
 
-  // تحديث quality-pill ليعكس الجودة الفعلية بدلاً من "Medium" الثابتة
-  const _qualityPill = document.getElementById('quality-pill');
-  if (_qualityPill) {
-    _qualityPill.textContent = _isWebView ? 'Low' : (_isMobile ? 'Medium' : 'High');
+  // ============================================================
+  //  QUALITY SWITCHER  — نظام تبديل الجودة الكامل
+  //  يُستدعى بعد إنشاء maze و renderer
+  // ============================================================
+  function initQualitySwitcher() {
+
+    // ===== ثوابت كل مستوى =====
+    const TIERS = {
+      low:    { texSize: 256,  aniso: 1,  pixelRatio: 1.0,  antialias: false, detail: 1, label: 'Low'    },
+      medium: { texSize: 512,  aniso: 4,  pixelRatio: 1.25, antialias: false, detail: 2, label: 'Medium' },
+      high:   { texSize: 1024, aniso: 8,  pixelRatio: 1.5,  antialias: false, detail: 3, label: 'High'   },
+      ultra:  { texSize: 2048, aniso: 16, pixelRatio: 2.0,  antialias: false, detail: 4, label: 'Ultra'  },
+    };
+
+    const pill      = document.getElementById('quality-pill');
+    const label     = document.getElementById('quality-label');
+    const menu      = document.getElementById('quality-menu');
+    const toast     = document.getElementById('quality-toast');
+    const items     = menu.querySelectorAll('.qmenu-item');
+    let toastTimer  = null;
+    let menuOpen    = false;
+
+    // ===== تحديث label وmark active =====
+    function syncUI(tier) {
+      label.textContent = TIERS[tier]?.label || tier;
+      items.forEach(el => {
+        el.classList.toggle('active', el.dataset.tier === tier);
+        // إظهار شارة "تلقائي" على المستوى المكتشف أوتوماتيك
+        const autoTag = el.querySelector('.qitem-auto');
+        if (el.dataset.tier === GFX._autoTier) {
+          if (!autoTag) {
+            const tag = document.createElement('span');
+            tag.className = 'qitem-auto';
+            tag.textContent = 'تلقائي';
+            el.appendChild(tag);
+          }
+        } else if (autoTag) {
+          autoTag.remove();
+        }
+      });
+    }
+
+    // ===== فتح / إغلاق القائمة =====
+    function openMenu() {
+      menuOpen = true;
+      menu.classList.add('open');
+      pill.classList.add('open');
+      pill.setAttribute('aria-expanded', 'true');
+    }
+    function closeMenu() {
+      menuOpen = false;
+      menu.classList.remove('open');
+      pill.classList.remove('open');
+      pill.setAttribute('aria-expanded', 'false');
+    }
+    function toggleMenu(e) {
+      e.stopPropagation();
+      menuOpen ? closeMenu() : openMenu();
+    }
+
+    // ===== إظهار الـ Toast =====
+    function showToast(msg) {
+      clearTimeout(toastTimer);
+      toast.textContent = msg;
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    // ===== تطبيق مستوى الجودة الجديد =====
+    function applyTier(tier) {
+      if (!TIERS[tier]) return;
+      const cfg = TIERS[tier];
+
+      // حفظ في GFX
+      GFX.tier       = tier;
+      GFX.texSize    = cfg.texSize;
+      GFX.aniso      = cfg.aniso;
+      GFX.pixelRatio = cfg.pixelRatio;
+      GFX.detail     = cfg.detail;
+
+      // ===== Pixel Ratio =====
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, cfg.pixelRatio));
+
+      // ===== إعادة بناء النسيج على كل المواد =====
+      // (نُعيد بناء فقط المواد التي تملك map)
+      try {
+        const wallTex  = makeWallTexture();
+        const floorTex = makeFloorTexture();
+        const ceilTex  = makeCeilTexture();
+
+        // maze materials
+        if (maze.wallMat  && maze.wallMat.map)  { maze.wallMat.map.dispose();  maze.wallMat.map  = wallTex;  maze.wallMat.needsUpdate  = true; }
+        if (maze.floorMat && maze.floorMat.map) { maze.floorMat.map.dispose(); maze.floorMat.map = floorTex; maze.floorMat.needsUpdate = true; }
+        if (maze.ceilMat  && maze.ceilMat.map)  { maze.ceilMat.map.dispose();  maze.ceilMat.map  = ceilTex;  maze.ceilMat.needsUpdate  = true; }
+
+        // door panel (يحتوي map اختياري)
+        if (maze.wallMat) { maze.wallMat.anisotropy = cfg.aniso; }
+      } catch(e) {
+        console.warn('[QualitySwitcher] texture rebuild error:', e);
+      }
+
+      syncUI(tier);
+      closeMenu();
+      showToast(`✓ الجودة: ${cfg.label}`);
+      console.log('[GFX] Switched to:', tier);
+    }
+
+    // ===== أحداث الضغط =====
+    pill.addEventListener('click',    e => toggleMenu(e));
+    pill.addEventListener('touchend', e => { e.preventDefault(); toggleMenu(e); }, { passive: false });
+
+    // ضغطة على خيار
+    items.forEach(el => {
+      const handler = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        applyTier(el.dataset.tier);
+      };
+      el.addEventListener('click',    handler);
+      el.addEventListener('touchend', handler, { passive: false });
+    });
+
+    // إغلاق بالضغط خارج القائمة
+    document.addEventListener('click',    e => { if (menuOpen && !pill.contains(e.target)) closeMenu(); });
+    document.addEventListener('touchend', e => { if (menuOpen && !pill.contains(e.target)) closeMenu(); });
+
+    // إغلاق بـ Escape
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && menuOpen) closeMenu(); });
+
+    // ===== تهيئة أولية =====
+    GFX._autoTier = GFX.tier; // نحفظ المستوى المكتشف تلقائياً
+    syncUI(GFX.tier);
+
   }
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, _pixelCap));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, GFX.pixelRatio));
   });
 
   const maze = new SchoolMaze(scene);
   maze.build();
+
+  // تهيئة نظام تبديل الجودة (بعد maze و renderer)
+  initQualitySwitcher();
 
   let toggleSettings = () => {};
   const ui = initUI({
@@ -2558,6 +3263,7 @@
       }
       if ((player.interactPressed || player.keys['KeyE']) && GameState.keysCollected >= GameState.totalKeys) {
         maze.openDoor();
+        enemy.refreshGridForDoor(); // ✅ FIX: العدو يحجب الغرفة من خريطته فوراً
         npcGroup.visible = true;
         instPanel.innerHTML = "لقد وجدت المخرج!<br>اذهب وتحدث مع الناجي.";
         player.interactPressed = false;
@@ -2569,8 +3275,11 @@
     }
 
     if (maze.doorOpened && !GameState.gameWon) {
-      // اللاعب دخل داخل الغرفة (Z أصغر من مركز الغرفة)
-      if (camera.position.z < maze._roomCZ + 0.5) {
+      // ✅ FIX8: شرط الفوز أكثر موثوقية — اللاعب داخل الغرفة
+      // نستخدم _roomCZ ونضيف هامش أكبر
+      const inRoom = camera.position.z < maze._roomCZ + maze.cellSize * 0.8
+                  && Math.abs(camera.position.x - maze.doorPos.x) < maze.cellSize * 0.8;
+      if (inRoom) {
         GameState.gameWon = true;
         GameSettings.paused = true;
         document.exitPointerLock?.();
