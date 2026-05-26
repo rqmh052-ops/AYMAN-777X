@@ -350,6 +350,8 @@
         <div id="quality-toast"></div>
         <div class="pill" id="fps-pill">FPS: 0</div>
       </div>
+      <button id="orientation-btn" style="position:absolute;bottom:160px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);border:2px solid #edd56a;border-radius:12px;padding:10px 20px;font-size:13px;font-weight:900;color:#edd56a;cursor:pointer;pointer-events:auto;z-index:999;text-align:center;min-width:200px;">🔄 احتمال 1 / 4 — اضغط للتبديل</button>
+      <div id="orientation-hint" style="position:absolute;bottom:130px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);border-radius:8px;padding:5px 14px;font-size:11px;color:#fff;pointer-events:none;z-index:999;white-space:nowrap;">Y = +90°</div>
       <div id="instructions-panel">اجمع 3 مفاتيح <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#edd56a" stroke-width="2.5" stroke-linecap="round" style="vertical-align:middle"><circle cx="7.5" cy="7.5" r="4.5"/><line x1="11" y1="11" x2="21" y2="21"/><line x1="18" y1="18" x2="21" y2="15"/><line x1="15" y1="21" x2="15" y2="18"/></svg><br>لفتح الباب والهروب!</div>
       <div id="interaction-prompt">اضغط [E] لفتح الباب</div>
       <div id="hearts-hud" style="
@@ -1634,22 +1636,33 @@
 
         const wrapper = new THREE.Group();
 
-        // ===== FIX: تصحيح اتجاه النموذج =====
-        // المشكلة: الدوران Math.PI على محور Z كان يقلب السلاح رأساً على عقب
-        // الحل: إزالة القلب العمودي والاعتماد على الدوران الصحيح
-        if (longestAxis === 'x') {
-          // البرميل على محور X → wrapper يدور -90° على Y لتوجيه الفوهة للأمام
-          wrapper.rotation.y = Math.PI / 2 + Math.PI;
-          // بدون قلب Z — الزناد يظل في وضعه الطبيعي للأسفل
-          model.rotation.set(0.06, 0, 0);
-        } else if (longestAxis === 'y') {
-          // السلاح واقف عمودياً → wrapper يميله للأمام
-          wrapper.rotation.x = -Math.PI / 2;
-          model.rotation.set(0, Math.PI, 0);
-        } else {
-          // البرميل على Z أصلاً
-          wrapper.rotation.y = center.z > 0 ? Math.PI : 0;
-          model.rotation.set(0.06, 0, 0);
+        // ===== 4 احتمالات للتوجيه — يتحكم فيها الزر =====
+        const _ORIENTATIONS = [
+          { label: '1 / 4 — Y = +90°',      wy:  Math.PI / 2,           rx: 0.06, rz: 0 },
+          { label: '2 / 4 — Y = -90°',      wy: -Math.PI / 2,           rx: 0.06, rz: 0 },
+          { label: '3 / 4 — Y = +90° + Z↑', wy:  Math.PI / 2,           rx: 0.06, rz: Math.PI },
+          { label: '4 / 4 — Y = -90° + Z↑', wy: -Math.PI / 2,           rx: 0.06, rz: Math.PI },
+        ];
+        let _oriIdx = 0;
+
+        function _applyOrientation(idx) {
+          const o = _ORIENTATIONS[idx];
+          wrapper.rotation.set(0, o.wy, 0);
+          model.rotation.set(o.rx, 0, o.rz);
+          const btn  = document.getElementById('orientation-btn');
+          const hint = document.getElementById('orientation-hint');
+          if (btn)  btn.textContent  = '🔄 احتمال ' + o.label + ' — اضغط للتبديل';
+          if (hint) hint.textContent = o.label;
+        }
+
+        _applyOrientation(_oriIdx);
+
+        const _oriBtn = document.getElementById('orientation-btn');
+        if (_oriBtn) {
+          _oriBtn.onclick = () => {
+            _oriIdx = (_oriIdx + 1) % _ORIENTATIONS.length;
+            _applyOrientation(_oriIdx);
+          };
         }
 
         wrapper.add(model);
