@@ -960,15 +960,49 @@
   // ============================================================
   function createAK47() {
     const g = new THREE.Group();
-    const metal = new THREE.MeshStandardMaterial({ color: '#1a1f23', roughness: 0.6, metalness: 0.5 });
-    const wood  = new THREE.MeshStandardMaterial({ color: '#624126', roughness: 0.9, metalness: 0.05 });
-    const body      = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 0.78), metal); body.position.z = -0.06;
-    const barrel    = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.48, 8), metal); barrel.rotation.x = Math.PI / 2; barrel.position.z = -0.48;
-    const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.18), wood); handguard.position.z = -0.24;
-    const magazine  = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.28, 0.14), metal); magazine.rotation.x = 0.48; magazine.position.set(0, -0.15, -0.02);
-    const grip      = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.08), wood); grip.rotation.x = -0.35; grip.position.set(0, -0.09, 0.16);
-    const stock     = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.24), wood); stock.position.set(0, 0.05, 0.42);
-    g.add(body, barrel, handguard, magazine, grip, stock);
+    const metal     = new THREE.MeshStandardMaterial({ color: '#1a1f23', roughness: 0.55, metalness: 0.65, depthTest: false, depthWrite: false, toneMapped: false });
+    const metalDark = new THREE.MeshStandardMaterial({ color: '#111518', roughness: 0.50, metalness: 0.70, depthTest: false, depthWrite: false, toneMapped: false });
+    const wood      = new THREE.MeshStandardMaterial({ color: '#7a4e2a', roughness: 0.88, metalness: 0.04, depthTest: false, depthWrite: false, toneMapped: false });
+
+    // ===== الجسم الرئيسي (أوسع وأكثر وضوحاً) =====
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.14, 0.70), metal);
+    body.position.set(0, 0, -0.05);
+
+    // ===== البرميل (أسمك — يتجه نحو الأمام -Z) =====
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.030, 0.55, 10), metalDark);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.set(0, 0.02, -0.52);  // فوهة نحو الأمام (-Z)
+
+    // طرف الفوهة (muzzle)
+    const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.028, 0.06, 10), metalDark);
+    muzzle.rotation.x = Math.PI / 2;
+    muzzle.position.set(0, 0.02, -0.82);
+
+    // ===== الحارس الأمامي (handguard) =====
+    const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.095, 0.22), wood);
+    handguard.position.set(0, -0.025, -0.30);
+
+    // ===== المخزن (magazine) — مائل للأمام =====
+    const magazine = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.26, 0.11), metal);
+    magazine.rotation.x = 0.38;
+    magazine.position.set(0, -0.18, -0.06);
+
+    // ===== المقبض (grip) =====
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.18, 0.085), wood);
+    grip.rotation.x = -0.32;
+    grip.position.set(0, -0.09, 0.22);
+
+    // ===== الخزان الخلفي (stock) =====
+    const stockMain = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.085, 0.30), wood);
+    stockMain.position.set(0, 0.025, 0.50);
+    const stockEnd  = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.10, 0.06), metal);
+    stockEnd.position.set(0, 0.020, 0.65);
+
+    // ===== الرف العلوي (تشكيل السلاح) =====
+    const topRail = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.035, 0.55), metalDark);
+    topRail.position.set(0, 0.085, -0.07);
+
+    g.add(body, barrel, muzzle, handguard, magazine, grip, stockMain, stockEnd, topRail);
     return g;
   }
 
@@ -1494,6 +1528,7 @@
       this.hasWeapon = true;
       this.lastShotTime = 0;
       this.recoil = 0;
+      this.weaponKick = 0;
       this.keys = {};
       this.mouseDelta = { x: 0, y: 0 };
       this.joy = { x: 0, y: 0 };
@@ -1530,9 +1565,15 @@
 
       this.equipGroup = new THREE.Group();
       this.equipAK = createAK47();
-      this.equipAK.scale.set(0.38, 0.38, 0.38);
-      this.equipAK.position.set(0.18, -0.25, -0.4);
-      this.equipAK.rotation.set(0, 0.15, 0);
+      this.equipAK.scale.set(0.78, 0.78, 0.78);
+      // السلاح في الجانب الأيمن أسفل الشاشة — مائل مثل FPS حقيقي
+      // rotation.z سالب = يميل السلاح لليمين وأسفل (مثل الصورة)
+      // rotation.y = الفوهة تتجه نحو الأمام (-Z في فضاء الكاميرا)
+      // Classic FPS viewmodel: bottom-right corner, barrel pointing forward
+      this.equipAK.position.set(0.32, -0.28, -0.45);
+      this.equipAK.rotation.set(0.04, 0.12, -0.12);
+      this.equipAK.renderOrder = 999;
+      this._loadAKModel();
 
       const skinMat   = new THREE.MeshStandardMaterial({ color: '#e0ac69', roughness: 0.5 });
       const rightArm  = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.5), skinMat);
@@ -1548,6 +1589,112 @@
       this.camera.add(this.equipGroup);
     }
 
+
+
+    _loadAKModel() {
+      const loader = new THREE.GLTFLoader();
+      loader.load('models/AK47.glb', gltf => {
+        const model = gltf.scene;
+        model.traverse(child => {
+          if (child.isMesh) {
+            child.castShadow = false;
+            child.receiveShadow = false;
+            if (child.material) {
+              child.material = child.material.clone();
+              child.material.side = THREE.DoubleSide;
+              child.material.metalness = Math.max(child.material.metalness || 0, 0.25);
+              child.material.roughness = Math.min(child.material.roughness || 1, 0.75);
+              if (child.material.color) {
+                child.material.emissive = child.material.color.clone().multiplyScalar(0.08);
+                child.material.emissiveIntensity = 0.18;
+              }
+              child.material.depthTest = false;
+              child.material.depthWrite = false;
+              child.material.toneMapped = false;
+            }
+          }
+        });
+
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const maxAxis = Math.max(size.x, size.y, size.z) || 1;
+        const scale = 1.8 / maxAxis;
+        model.scale.setScalar(scale);
+
+        const center = box.getCenter(new THREE.Vector3());
+        model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+
+        // ── Auto-orient باستخدام wrapper group لتفادي مشاكل ترتيب المحاور ──
+        // wrapper يدور حول Y فقط لتوجيه الفوهة نحو -Z
+        // model يدور حول Z فقط لقلب السلاح بحيث الزناد للأسفل
+        // هذا يضمن أن كل دوران مستقل ولا يؤثر على الآخر
+        const sz = size.clone().multiplyScalar(scale);
+        const longestAxis = (sz.x >= sz.y && sz.x >= sz.z) ? 'x'
+                          : (sz.z >= sz.y && sz.z >= sz.x) ? 'z' : 'y';
+
+        const wrapper = new THREE.Group();
+
+        // ===== FIX: تصحيح اتجاه النموذج =====
+        // المشكلة: الدوران Math.PI على محور Z كان يقلب السلاح رأساً على عقب
+        // الحل: إزالة القلب العمودي والاعتماد على الدوران الصحيح
+        if (longestAxis === 'x') {
+          // البرميل على محور X → wrapper يدور -90° على Y لتوجيه الفوهة للأمام
+          wrapper.rotation.y = -Math.PI / 2;
+          // بدون قلب Z — الزناد يظل في وضعه الطبيعي للأسفل
+          model.rotation.set(0.06, 0, 0);
+        } else if (longestAxis === 'y') {
+          // السلاح واقف عمودياً → wrapper يميله للأمام
+          wrapper.rotation.x = -Math.PI / 2;
+          model.rotation.set(0, Math.PI, 0);
+        } else {
+          // البرميل على Z أصلاً
+          wrapper.rotation.y = center.z > 0 ? Math.PI : 0;
+          model.rotation.set(0.06, 0, 0);
+        }
+
+        wrapper.add(model);
+
+        while (this.equipAK.children.length > 0) {
+          this.equipAK.remove(this.equipAK.children[0]);
+        }
+
+        wrapper.renderOrder = 999;
+        model.renderOrder = 999;
+        this.equipAK.renderOrder = 999;
+        this.equipAK.add(wrapper);
+
+        const skinMat = new THREE.MeshStandardMaterial({ color: '#e0ac69', roughness: 0.5 });
+        const rightArm  = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.5), skinMat);
+        rightArm.position.set(0.05, -0.2, 0.25);
+        rightArm.rotation.set(Math.PI / 2 + 0.3, 0, 0);
+
+        const leftArm   = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.45), skinMat);
+        leftArm.position.set(-0.15, -0.15, -0.05);
+        leftArm.rotation.set(Math.PI / 2 - 0.2, 0, -0.4);
+
+        this.equipAK.add(rightArm, leftArm);
+        this.equipAK.add(this.flashLight);
+      }, undefined, () => {
+        // ✅ إعادة بناء السلاح الإجرائي عند فشل تحميل GLB
+        console.warn('[AK47] models/AK47.glb failed to load — restoring procedural fallback');
+        while (this.equipAK.children.length > 0) {
+          this.equipAK.remove(this.equipAK.children[0]);
+        }
+        const proceduralGun = createAK47();
+        proceduralGun.renderOrder = 999;
+        this.equipAK.add(proceduralGun);
+
+        const skinMat = new THREE.MeshStandardMaterial({ color: '#e0ac69', roughness: 0.5 });
+        const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.5), skinMat);
+        rightArm.position.set(0.05, -0.2, 0.25);
+        rightArm.rotation.set(Math.PI / 2 + 0.3, 0, 0);
+        const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.45), skinMat);
+        leftArm.position.set(-0.15, -0.15, -0.05);
+        leftArm.rotation.set(Math.PI / 2 - 0.2, 0, -0.4);
+        this.equipAK.add(rightArm, leftArm);
+        this.equipAK.add(this.flashLight);
+      });
+    }
     _bindInputs() {
       window.addEventListener('keydown', e => {
         this.keys[e.code] = true;
@@ -1706,17 +1853,29 @@
         this.rightLeg.position.z = lerp(this.rightLeg.position.z, 0, delta * 10);
       }
 
-      if (this.hasWeapon && (this.firePressed || this.keys['KeyF']) && time - this.lastShotTime > 110) {
+      if (this.hasWeapon && (this.firePressed || this.keys['KeyF']) && time - this.lastShotTime > 78) {
         this.lastShotTime = time;
-        this.recoil = 0.15;
-        this.flashLight.intensity = 2;
+        this.recoil = 0.22;
+        this.weaponKick = 0.035;
+        this.flashLight.intensity = 3.5;
+        this.camera.rotation.x -= 0.004;
         AudioSys.playShoot();
+
+        if (navigator.vibrate) navigator.vibrate(8);
       }
 
-      this.recoil = lerp(this.recoil, 0, delta * 15);
-      this.equipAK.position.z = -0.4 + this.recoil * 0.15;
-      this.equipAK.rotation.x = this.recoil * 0.4;
-      this.flashLight.intensity = lerp(this.flashLight.intensity, 0, delta * 25);
+      this.recoil = lerp(this.recoil, 0, delta * 18);
+      this.weaponKick = lerp(this.weaponKick, 0, delta * 20);
+
+      const walkBob = Math.sin(this.bob * 0.5) * 0.015;
+      this.equipAK.position.x =  0.32 + walkBob * 1.10;
+      this.equipAK.position.y = -0.28 - Math.abs(walkBob * 0.35) + this.weaponKick;
+      this.equipAK.position.z = -0.45 + this.recoil * 0.10;
+      this.equipAK.rotation.x =  0.04 + this.recoil * 0.22;
+      this.equipAK.rotation.y =  0.12 + this.recoil * 0.04;
+      this.equipAK.rotation.z = -0.12 - this.recoil * 0.06;
+
+      this.flashLight.intensity = lerp(this.flashLight.intensity, 0, delta * 30);
     }
   }
 
