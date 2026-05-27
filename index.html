@@ -21,6 +21,8 @@
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--bg); font-family: system-ui, sans-serif; color: var(--text); touch-action: none; }
+    #question-overlay, #question-overlay * { touch-action: auto !important; pointer-events: auto !important; }
+    #q-choices, #q-choices * { touch-action: manipulation !important; pointer-events: auto !important; }
     body.paused #game { filter: brightness(0.7); }
     #app { position: relative; width: 100%; height: 100%; }
     #game { display: block; width: 100%; height: 100%; will-change: transform; transform: translateZ(0); }
@@ -368,7 +370,7 @@
         border-radius:999px;padding:4px 10px;
         pointer-events:none;font-size:13px;font-weight:700;color:#ffd700;
       "><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#ffd700" stroke-width="2.5" stroke-linecap="round" style="vertical-align:middle;flex-shrink:0"><circle cx="7.5" cy="7.5" r="4.5"/><line x1="11" y1="11" x2="21" y2="21"/><line x1="18" y1="18" x2="21" y2="15"/><line x1="15" y1="21" x2="15" y2="18"/></svg> <span id="keys-count">0/3</span></div>
-      <button id="map-btn" style="
+      <button id="map-btn" class="locked" style="
         position:absolute;top:116px;right:8px;
         background:rgba(13,17,16,0.88);border:1px solid rgba(255,200,0,0.45);
         border-radius:10px;padding:5px 11px;
@@ -379,6 +381,8 @@
       "><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#ffd700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> خريطة</button>
       <style>
         #map-btn:active{background:rgba(255,200,0,0.15)!important;box-shadow:0 0 18px rgba(255,200,0,0.4)!important;}
+        #map-btn.locked{opacity:0.35;filter:grayscale(1);cursor:not-allowed;pointer-events:none;}
+        #map-btn.locked::after{content:'🔒';margin-right:4px;font-size:11px;}
       </style>
     </div>
     <div id="crosshair"></div>
@@ -436,7 +440,7 @@
   <div id="win-overlay" style="
     display:none;position:fixed;inset:0;z-index:9999;
     background:rgba(0,0,0,0.92);
-    display:none;flex-direction:column;align-items:center;justify-content:center;
+    flex-direction:column;align-items:center;justify-content:center;
     font-family:system-ui,sans-serif;direction:rtl;
   ">
     <div style="
@@ -1634,9 +1638,17 @@
 
         const wrapper = new THREE.Group();
 
-        // الاحتمال الرابع: wrapper بدون دوران
-        wrapper.rotation.set(0, 0, 0);
-        model.rotation.set(0, 0, 0);
+        // Auto-orient: دوران السلاح بناءً على المحور الأطول
+        if (longestAxis === 'z') {
+          wrapper.rotation.set(0, 0, 0);
+          model.rotation.set(0, 0, 0);
+        } else if (longestAxis === 'x') {
+          wrapper.rotation.set(0, Math.PI / 2, 0);
+          model.rotation.set(0, 0, 0);
+        } else {
+          wrapper.rotation.set(Math.PI / 2, 0, 0);
+          model.rotation.set(0, 0, 0);
+        }
 
         wrapper.add(model);
 
@@ -1731,6 +1743,8 @@
 
       const isLookTarget = (e) => {
         if (GameSettings.paused) return false;
+        if (GameState.questionActive) return false;
+        if (e.target.closest('#question-overlay')) return false;
         if (e.target.closest('.action-btn')) return false;
         if (e.target.closest('#top-controls')) return false;
         if (e.target.closest('#joystick')) return false;
@@ -1739,14 +1753,17 @@
       };
 
       document.body.addEventListener('pointerdown', e => {
+        // إذا اللمس على نافذة الأسئلة — لا تسرق الحدث أبداً
+        if (GameState.questionActive) return;
+        if (e.target.closest('#question-overlay') || e.target.closest('#q-choices')) return;
         if (!isLookTarget(e) || lookId !== null) return;
         lookId = e.pointerId;
         lastT  = { x: e.clientX, y: e.clientY };
-        try { document.body.setPointerCapture(lookId); } catch(_) {}
       });
 
       window.addEventListener('pointermove', e => {
         if (e.pointerId !== lookId) return;
+        if (GameState.questionActive) { lookId = null; return; }
         const dx = (e.clientX - lastT.x) * 0.0045;
         const dy = (e.clientY - lastT.y) * 0.0045;
         lastT = { x: e.clientX, y: e.clientY };
@@ -1757,6 +1774,8 @@
       const stopLook = e => { if (e.pointerId === lookId) lookId = null; };
       window.addEventListener('pointerup',     stopLook);
       window.addEventListener('pointercancel', stopLook);
+      // دالة عامة لإيقاف نظام النظر من أي مكان (تستخدمها نافذة الأسئلة)
+      window._releaseLook = () => { lookId = null; };
 
       document.getElementById('btn-fire').addEventListener('pointerdown',    e => { e.preventDefault(); if (!GameSettings.paused) this.firePressed = true; });
       document.getElementById('btn-fire').addEventListener('pointerup',      e => { e.preventDefault(); this.firePressed = false; });
@@ -1882,15 +1901,8 @@
     { q: "كم ناتج: 15 + 10 ؟",                choices: ["20", "25", "30"],         answer: 1 },
     { q: "كم ناتج: 14 + 16 ؟",                choices: ["28", "30", "32"],         answer: 1 },
     { q: "كم ناتج: 20 + 5 ؟",                 choices: ["22", "25", "28"],         answer: 1 },
-    { q: "كم ناتج: 12 + 13 ؟",                choices: ["23", "25", "27"],         answer: 2 },
+    { q: "كم ناتج: 12 + 13 ؟",                choices: ["23", "25", "27"],         answer: 1 },
     { q: "كم ناتج: 18 + 7 ؟",                 choices: ["23", "25", "27"],         answer: 1 },
-  ];
-  const CAPITAL_QUESTIONS = [
-    { country: 'السعودية', flag: '🇸🇦', q: 'ما عاصمة السعودية؟', choices: ['الرياض', 'جدة', 'الدمام'], answer: 0 },
-    { country: 'مصر', flag: '🇪🇬', q: 'ما عاصمة مصر؟', choices: ['الإسكندرية', 'القاهرة', 'الأقصر'], answer: 1 },
-    { country: 'اليابان', flag: '🇯🇵', q: 'ما عاصمة اليابان؟', choices: ['أوساكا', 'طوكيو', 'كيوتو'], answer: 1 },
-    { country: 'فرنسا', flag: '🇫🇷', q: 'ما عاصمة فرنسا؟', choices: ['مارسيليا', 'ليون', 'باريس'], answer: 2 },
-    { country: 'المغرب', flag: '🇲🇦', q: 'ما عاصمة المغرب؟', choices: ['الرباط', 'طنجة', 'فاس'], answer: 0 },
   ];
 
   // ============================================================
@@ -1908,7 +1920,6 @@
     hasMap: true,
     mapRevealed: false,
     startTime: performance.now(),
-    hideMode: null,
   };
 
   // ---- رسم القلوب SVG في الـ HUD ----
@@ -1963,8 +1974,393 @@
   }
 
   // ============================================================
-  //  QUESTION OVERLAY
+  //  QUESTION OVERLAY — Premium Redesign
   // ============================================================
+
+  // حقن CSS الخاص بنظام الأسئلة
+  (function injectQuestionCSS() {
+    const style = document.createElement('style');
+    style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+
+      /* ===== Question Overlay Backdrop ===== */
+      #question-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Cairo', system-ui, sans-serif;
+        direction: rtl;
+        background: radial-gradient(ellipse at center, rgba(0,20,10,0.72) 0%, rgba(0,0,0,0.85) 100%);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        opacity: 0;
+        transition: opacity 0.35s ease;
+        padding: 16px;
+        pointer-events: auto;
+      }
+      #question-overlay.q-visible {
+        opacity: 1;
+      }
+
+      /* ===== Card ===== */
+      #q-card {
+        position: relative;
+        width: min(380px, 94vw);
+        max-height: 90vh;
+        overflow: hidden;
+        pointer-events: auto;
+        touch-action: auto;
+        z-index: 1;
+        border-radius: 24px;
+        background: linear-gradient(160deg, #07130e 0%, #0c1f17 40%, #091a12 100%);
+        border: 1px solid rgba(0,255,140,0.18);
+        box-shadow:
+          0 0 0 1px rgba(0,255,140,0.06),
+          0 8px 40px rgba(0,0,0,0.9),
+          0 0 80px rgba(0,200,100,0.08),
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          inset 0 -1px 0 rgba(0,0,0,0.4);
+        transform: scale(0.82) translateY(24px);
+        opacity: 0;
+        transition:
+          transform 0.42s cubic-bezier(0.175,0.885,0.32,1.28),
+          opacity 0.38s ease;
+        will-change: transform, opacity;
+      }
+      #q-card.q-card-in {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+      }
+      #q-card.q-card-shake {
+        animation: qShake 0.45s cubic-bezier(.36,.07,.19,.97) both;
+      }
+      #q-card.q-card-out {
+        transform: scale(0.94) translateY(-18px);
+        opacity: 0;
+        transition:
+          transform 0.30s cubic-bezier(0.55,0,1,0.45),
+          opacity 0.28s ease;
+      }
+
+      @keyframes qShake {
+        0%,100% { transform: scale(1) translateX(0); }
+        15%      { transform: scale(1.01) translateX(-6px); }
+        30%      { transform: scale(1.01) translateX(6px); }
+        45%      { transform: scale(1.01) translateX(-4px); }
+        60%      { transform: scale(1) translateX(4px); }
+        75%      { transform: scale(1) translateX(-2px); }
+      }
+
+      /* ===== Ambient glow orbs ===== */
+      .q-orb {
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+        filter: blur(28px);
+        mix-blend-mode: screen;
+        animation: qOrbFloat 5s ease-in-out infinite alternate;
+      }
+      .q-orb-1 {
+        width: 90px; height: 90px;
+        background: radial-gradient(circle, rgba(0,255,120,0.15) 0%, transparent 70%);
+        top: -30px; right: -20px;
+        animation-delay: 0s;
+      }
+      .q-orb-2 {
+        width: 70px; height: 70px;
+        background: radial-gradient(circle, rgba(80,200,255,0.10) 0%, transparent 70%);
+        bottom: -20px; left: -10px;
+        animation-delay: -2.5s;
+      }
+      .q-orb-3 {
+        width: 50px; height: 50px;
+        background: radial-gradient(circle, rgba(255,200,50,0.08) 0%, transparent 70%);
+        top: 40%; right: -10px;
+        animation-delay: -1.2s;
+      }
+      @keyframes qOrbFloat {
+        from { transform: translate(0,0) scale(1); }
+        to   { transform: translate(8px,-12px) scale(1.1); }
+      }
+
+      /* ===== Glass inner stripe ===== */
+      .q-inner-glass {
+        position: absolute;
+        inset: 0;
+        border-radius: 24px;
+        background: linear-gradient(135deg,
+          rgba(255,255,255,0.035) 0%,
+          rgba(255,255,255,0) 50%,
+          rgba(0,255,120,0.02) 100%
+        );
+        pointer-events: none;
+      }
+
+      /* ===== Top badge ===== */
+      .q-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 16px 10px;
+        border-bottom: 1px solid rgba(0,255,140,0.10);
+        background: rgba(0,255,120,0.04);
+      }
+      .q-badge-icon {
+        width: 18px; height: 18px;
+        opacity: 0.7;
+        animation: qPulseIcon 2s ease-in-out infinite;
+      }
+      @keyframes qPulseIcon {
+        0%,100% { opacity: 0.6; transform: scale(1); }
+        50%      { opacity: 1;   transform: scale(1.12); }
+      }
+      .q-badge-text {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(0,255,140,0.55);
+      }
+
+      /* ===== Timer zone ===== */
+      .q-timer-zone {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 18px 8px;
+      }
+      .q-timer-ring-wrap {
+        position: relative;
+        flex-shrink: 0;
+        width: 44px; height: 44px;
+      }
+      .q-timer-ring-svg {
+        width: 44px; height: 44px;
+        transform: rotate(-90deg);
+      }
+      .q-ring-bg {
+        fill: none;
+        stroke: rgba(255,255,255,0.07);
+        stroke-width: 3.5;
+      }
+      .q-ring-fill {
+        fill: none;
+        stroke: url(#qRingGrad);
+        stroke-width: 3.5;
+        stroke-linecap: round;
+        stroke-dasharray: 119.38; /* 2π × 19 */
+        stroke-dashoffset: 0;
+        transition: stroke-dashoffset 0.25s linear, stroke 0.3s ease;
+        filter: drop-shadow(0 0 4px rgba(0,255,120,0.5));
+      }
+      .q-timer-num-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        font-weight: 900;
+        color: #fff;
+        letter-spacing: -0.5px;
+        text-shadow: 0 0 10px rgba(0,255,120,0.6);
+      }
+      .q-timer-bar-wrap {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .q-timer-label {
+        font-size: 9.5px;
+        font-weight: 700;
+        color: rgba(180,230,200,0.45);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .q-timer-track {
+        height: 6px;
+        background: rgba(255,255,255,0.07);
+        border-radius: 99px;
+        overflow: hidden;
+        position: relative;
+      }
+      #q-timer-bar {
+        position: absolute;
+        inset: 0 0 0 auto;
+        width: 100%;
+        height: 100%;
+        border-radius: 99px;
+        background: linear-gradient(90deg, #00c864, #00ff8a, #80ffb8);
+        box-shadow: 0 0 8px rgba(0,255,120,0.5);
+        transition: width 0.25s linear, background 0.5s ease;
+        transform-origin: right center;
+      }
+      .q-timer-shimmer {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.25) 50%,transparent 100%);
+        background-size: 200% 100%;
+        animation: qShimmer 1.8s linear infinite;
+        border-radius: 99px;
+      }
+      @keyframes qShimmer {
+        0%   { background-position: 200% center; }
+        100% { background-position: -200% center; }
+      }
+
+      /* ===== Question text ===== */
+      .q-question-wrap {
+        padding: 4px 20px 16px;
+        text-align: center;
+      }
+      #q-text {
+        font-size: clamp(15px, 4.2vw, 19px);
+        font-weight: 700;
+        color: #e4f5ec;
+        line-height: 1.6;
+        letter-spacing: 0.01em;
+        text-shadow: 0 1px 12px rgba(0,0,0,0.7);
+      }
+
+      /* ===== Divider ===== */
+      .q-divider {
+        height: 1px;
+        margin: 0 18px 14px;
+        background: linear-gradient(90deg,
+          transparent 0%,
+          rgba(0,255,140,0.12) 30%,
+          rgba(0,255,140,0.18) 50%,
+          rgba(0,255,140,0.12) 70%,
+          transparent 100%
+        );
+      }
+
+      /* ===== Choices ===== */
+      #q-choices {
+        display: flex;
+        position: relative;
+        z-index: 4;
+        flex-direction: column;
+        gap: 8px;
+        padding: 0 16px 18px;
+      }
+      .q-btn {
+        position: relative;
+        z-index: 5;
+        overflow: hidden;
+        border: none;
+        cursor: pointer;
+        border-radius: 14px;
+        padding: 12px 18px;
+        font-family: 'Cairo', system-ui, sans-serif;
+        font-size: clamp(14px, 3.8vw, 16px);
+        font-weight: 700;
+        color: #fff;
+        text-align: center;
+        direction: rtl;
+        outline: none;
+        transition:
+          transform 0.14s cubic-bezier(0.34,1.56,0.64,1),
+          box-shadow 0.14s ease,
+          filter 0.14s ease;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        touch-action: manipulation;
+        opacity: 0;
+        transform: translateY(12px) scale(0.96);
+        animation: qBtnReveal 0.35s cubic-bezier(0.175,0.885,0.32,1.28) forwards;
+      }
+      .q-btn::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 60%);
+        border-radius: inherit;
+        pointer-events: none;
+      }
+      .q-btn::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: inherit;
+        pointer-events: none;
+      }
+      .q-btn:hover {
+        transform: translateY(-2px) scale(1.025) !important;
+        filter: brightness(1.18) saturate(1.2);
+      }
+      .q-btn:active {
+        transform: scale(0.97) !important;
+        filter: brightness(0.9);
+      }
+      .q-btn-a {
+        background: linear-gradient(135deg, #1a3fa8 0%, #1155cc 60%, #0d47a1 100%);
+        box-shadow: 0 4px 18px rgba(17,85,204,0.35), 0 1px 0 rgba(255,255,255,0.08) inset;
+      }
+      .q-btn-b {
+        background: linear-gradient(135deg, #6a1b9a 0%, #8e24aa 60%, #4a148c 100%);
+        box-shadow: 0 4px 18px rgba(142,36,170,0.35), 0 1px 0 rgba(255,255,255,0.08) inset;
+      }
+      .q-btn-c {
+        background: linear-gradient(135deg, #00695c 0%, #00897b 60%, #004d40 100%);
+        box-shadow: 0 4px 18px rgba(0,137,123,0.35), 0 1px 0 rgba(255,255,255,0.08) inset;
+      }
+      .q-btn-ripple {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.22);
+        transform: scale(0);
+        animation: qRipple 0.55s ease-out forwards;
+        pointer-events: none;
+      }
+      @keyframes qRipple {
+        to { transform: scale(4); opacity: 0; }
+      }
+      @keyframes qBtnReveal {
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      /* ===== Correct / Wrong flash overlays ===== */
+      .q-flash {
+        position: absolute;
+        inset: 0;
+        border-radius: 24px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.12s;
+        z-index: 2;
+      }
+      .q-flash-correct { background: rgba(0,255,120,0.12); }
+      .q-flash-wrong   { background: rgba(255,40,60,0.13); }
+      .q-flash.q-flash-on { opacity: 1; }
+
+      /* ===== Letter indicator (أ/ب/ج) ===== */
+      .q-btn-letter {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: rgba(0,0,0,0.25);
+        font-size: 11px;
+        font-weight: 900;
+        margin-left: 10px;
+        vertical-align: middle;
+        flex-shrink: 0;
+        border: 1px solid rgba(255,255,255,0.1);
+        color: rgba(255,255,255,0.7);
+      }
+    `;
+    document.head.appendChild(style);
+  })();
+
   const QuestionSystem = {
     _overlay: null,
     _timer: 5,
@@ -1972,116 +2368,180 @@
     _currentQ: null,
     _onCorrect: null,
     _onWrong: null,
+    _TOTAL_TIME: 5,
 
     init() {
-      // إنشاء الـ overlay
       const div = document.createElement('div');
       div.id = 'question-overlay';
-      div.style.cssText = `
-        position:fixed;inset:0;z-index:9000;display:none;
-        background:rgba(0,0,0,0.0);
-        align-items:center;justify-content:center;
-        font-family:system-ui,sans-serif;direction:rtl;
-      `;
+
       div.innerHTML = `
-        <div id="q-card" style="
-          background:linear-gradient(135deg,#0d1b0d 0%,#162416 60%,#0d1b0d 100%);
-          border:2px solid #4caf50;border-radius:20px;
-          width:min(420px,92vw);padding:28px 24px 22px;
-          box-shadow:0 0 60px rgba(76,175,80,0.35),0 0 120px rgba(0,0,0,0.8);
-          position:relative;overflow:hidden;
-        ">
-          <!-- جزيئات خلفية -->
-          <div style="position:absolute;inset:0;overflow:hidden;border-radius:20px;pointer-events:none;">
-            <div id="q-particle1" style="position:absolute;width:60px;height:60px;border-radius:50%;background:rgba(76,175,80,0.08);top:-20px;left:10px;"></div>
-            <div id="q-particle2" style="position:absolute;width:40px;height:40px;border-radius:50%;background:rgba(255,193,7,0.06);bottom:10px;right:20px;"></div>
+        <!-- SVG gradient defs -->
+        <svg width="0" height="0" style="position:absolute">
+          <defs>
+            <linearGradient id="qRingGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%"   stop-color="#00e676"/>
+              <stop offset="100%" stop-color="#69ff9c"/>
+            </linearGradient>
+          </defs>
+        </svg>
+
+        <div id="q-card">
+          <!-- Ambient orbs -->
+          <div class="q-orb q-orb-1"></div>
+          <div class="q-orb q-orb-2"></div>
+          <div class="q-orb q-orb-3"></div>
+          <!-- Inner glass sheen -->
+          <div class="q-inner-glass"></div>
+          <!-- Flash overlays -->
+          <div class="q-flash q-flash-correct" id="q-flash-correct"></div>
+          <div class="q-flash q-flash-wrong"   id="q-flash-wrong"></div>
+
+          <!-- Badge -->
+          <div class="q-badge">
+            <svg class="q-badge-icon" viewBox="0 0 24 24" fill="none" stroke="rgba(0,255,140,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>
+            </svg>
+            <span class="q-badge-text">سؤال — أجب بسرعة!</span>
           </div>
 
-          <!-- شريط الوقت -->
-          <div style="margin-bottom:6px;text-align:center;">
-            <div id="q-timer-num" style="
-              font-size:28px;font-weight:900;color:#ff5252;
-              text-shadow:0 0 12px rgba(255,82,82,0.8);
-              letter-spacing:2px;
-            ">5</div>
-          </div>
-          <div style="
-            width:100%;height:10px;background:rgba(255,255,255,0.1);
-            border-radius:6px;overflow:hidden;margin-bottom:20px;
-          ">
-            <div id="q-timer-bar" style="
-              width:100%;height:100%;
-              background:linear-gradient(90deg,#ff1744,#ff5252);
-              border-radius:6px;
-              transition:width 0.25s linear;
-              box-shadow:0 0 8px rgba(255,23,68,0.7);
-            "></div>
+          <!-- Timer row -->
+          <div class="q-timer-zone">
+            <div class="q-timer-ring-wrap">
+              <svg class="q-timer-ring-svg" viewBox="0 0 44 44">
+                <circle class="q-ring-bg"   cx="22" cy="22" r="19"/>
+                <circle class="q-ring-fill" id="q-ring-fill" cx="22" cy="22" r="19"/>
+              </svg>
+              <div class="q-timer-num-center" id="q-timer-num">5</div>
+            </div>
+            <div class="q-timer-bar-wrap">
+              <div class="q-timer-label">الوقت المتبقي</div>
+              <div class="q-timer-track">
+                <div id="q-timer-bar"></div>
+                <div class="q-timer-shimmer"></div>
+              </div>
+            </div>
           </div>
 
-          <!-- السؤال -->
-          <div id="q-text" style="
-            font-size:19px;font-weight:700;color:#e8f5e9;
-            text-align:center;margin-bottom:22px;line-height:1.5;
-            text-shadow:0 1px 4px rgba(0,0,0,0.5);
-          "></div>
+          <!-- Question -->
+          <div class="q-question-wrap">
+            <div id="q-text"></div>
+          </div>
 
-          <!-- الخيارات -->
-          <div id="q-choices" style="display:flex;flex-direction:column;gap:10px;"></div>
+          <!-- Divider -->
+          <div class="q-divider"></div>
+
+          <!-- Choices -->
+          <div id="q-choices"></div>
         </div>
       `;
+
       document.getElementById('app').appendChild(div);
       this._overlay = div;
+
+      // امنع الـ overlay من تمرير حركة اللمس للكاميرا — لكن لا نوقف أحداث الأزرار
+      const stopEvt = (e) => {
+        if (e.target && e.target.closest && e.target.closest('.q-btn')) return;
+        e.stopPropagation();
+      };
+      ['pointerdown','pointermove','touchmove'].forEach(evt => {
+        div.addEventListener(evt, stopEvt, { passive: false });
+      });
     },
 
     show(onCorrect, onWrong) {
       GameState.questionActive = true;
       this._onCorrect = onCorrect;
       this._onWrong   = onWrong;
-      this._timer = 5;
+      // أوقف نظام النظر والحركة باللمس فوراً — مرتين للتأكيد
+      if (window._releaseLook) window._releaseLook();
+      setTimeout(() => { if (window._releaseLook) window._releaseLook(); }, 30);
+      document.body.style.overflow = 'hidden';
 
-      // اختيار سؤال عشوائي
       this._currentQ = QUESTIONS_BANK[Math.floor(Math.random() * QUESTIONS_BANK.length)];
-
-      // ملء السؤال
       document.getElementById('q-text').textContent = this._currentQ.q;
 
-      // ملء الخيارات
+      // Build choice buttons
       const choicesDiv = document.getElementById('q-choices');
       choicesDiv.innerHTML = '';
-      const colors = ['#1565c0','#6a1b9a','#00695c'];
+      const btnClasses  = ['q-btn-a', 'q-btn-b', 'q-btn-c'];
+      const letters     = ['أ', 'ب', 'ج'];
+      const delays      = [0.08, 0.16, 0.24];
+
       this._currentQ.choices.forEach((ch, i) => {
         const btn = document.createElement('button');
-        btn.textContent = ch;
-        btn.style.cssText = `
-          padding:13px 18px;border-radius:12px;border:none;cursor:pointer;
-          font-size:16px;font-weight:700;color:#fff;
-          background:linear-gradient(135deg,${colors[i]},${colors[i]}cc);
-          box-shadow:0 4px 15px rgba(0,0,0,0.3);
-          transition:transform 0.1s,box-shadow 0.1s,filter 0.1s;
-          direction:rtl;text-align:center;
+        btn.className = `q-btn ${btnClasses[i]}`;
+        btn.style.animationDelay = delays[i] + 's';
+        btn.innerHTML = `
+          <span class="q-btn-letter">${letters[i]}</span>
+          ${ch}
         `;
-        btn.addEventListener('mouseenter', () => { btn.style.transform='scale(1.03)'; btn.style.filter='brightness(1.2)'; });
-        btn.addEventListener('mouseleave', () => { btn.style.transform='scale(1)'; btn.style.filter='brightness(1)'; });
-        btn.addEventListener('click', () => this._answer(i));
-        // للموبايل - stopPropagation لمنع تفعيل click أيضاً
-        btn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); this._answer(i); });
+
+        btn.type = 'button';
+        btn.style.pointerEvents = 'auto';
+        btn.style.touchAction = 'manipulation';
+        btn.setAttribute('aria-label', `خيار ${letters[i]}: ${ch}`);
+
+        // Ripple effect
+        const addRipple = (e) => {
+          const rect = btn.getBoundingClientRect();
+          const pt = (e && e.clientX != null)
+            ? { x: e.clientX, y: e.clientY }
+            : (e && e.touches && e.touches[0])
+              ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+              : { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          const cx = pt.x - rect.left;
+          const cy = pt.y - rect.top;
+          const r = document.createElement('span');
+          r.className = 'q-btn-ripple';
+          r.style.cssText = `width:${rect.width}px;height:${rect.width}px;left:${cx - rect.width/2}px;top:${cy - rect.width/2}px`;
+          btn.appendChild(r);
+          setTimeout(() => r.remove(), 600);
+        };
+
+        let _answered = false;
+        const handleAnswer = (e) => {
+          if (_answered) return;
+          _answered = true;
+          if (e && e.preventDefault) e.preventDefault();
+          if (e && e.stopPropagation) e.stopPropagation();
+          if (window._releaseLook) window._releaseLook();
+          addRipple(e);
+          this._answer(i);
+        };
+
+        // pointerdown أسرع وأكثر موثوقية من pointerup على الموبايل/WebView
+        btn.addEventListener('pointerdown', handleAnswer, { passive: false });
+        btn.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleAnswer(e.changedTouches && e.changedTouches[0] ? e.changedTouches[0] : e);
+        }, { passive: false });
         choicesDiv.appendChild(btn);
       });
 
-      // شريط الوقت
-      document.getElementById('q-timer-bar').style.width = '100%';
-      document.getElementById('q-timer-num').textContent = '5';
+      // Reset timer UI
+      this._setTimerUI(1.0, this._TOTAL_TIME);
+      document.getElementById('q-flash-correct').classList.remove('q-flash-on');
+      document.getElementById('q-flash-wrong').classList.remove('q-flash-on');
 
+      // Show overlay
       this._overlay.style.display = 'flex';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          this._overlay.classList.add('q-visible');
+          document.getElementById('q-card').classList.add('q-card-in');
+          document.getElementById('q-card').classList.remove('q-card-out', 'q-card-shake');
+        });
+      });
 
+      // Start countdown
       clearInterval(this._timerInterval);
       let elapsed = 0;
       this._timerInterval = setInterval(() => {
         elapsed += 0.25;
-        const remaining = Math.max(0, 5 - elapsed);
-        const pct = (remaining / 5) * 100;
-        document.getElementById('q-timer-bar').style.width = pct + '%';
-        document.getElementById('q-timer-num').textContent = Math.ceil(remaining);
+        const remaining = Math.max(0, this._TOTAL_TIME - elapsed);
+        const pct = remaining / this._TOTAL_TIME;
+        this._setTimerUI(pct, Math.ceil(remaining));
         if (remaining <= 0) {
           clearInterval(this._timerInterval);
           this._fail();
@@ -2089,98 +2549,110 @@
       }, 250);
     },
 
-    _answer(idx) {
-      if (!GameState.questionActive) return;
-      clearInterval(this._timerInterval);
-      if (idx === this._currentQ.answer) {
-        this._overlay.style.display = 'none';
-        GameState.questionActive = false;
-        if (this._onCorrect) this._onCorrect();
-      } else {
-        this._fail();
+    _setTimerUI(pct, numDisplay) {
+      // Bar
+      const bar = document.getElementById('q-timer-bar');
+      if (bar) {
+        bar.style.width = (pct * 100) + '%';
+        // Color shift: green → yellow → red
+        if (pct > 0.5) {
+          bar.style.background = 'linear-gradient(90deg,#00c864,#00ff8a,#80ffb8)';
+          bar.style.boxShadow  = '0 0 8px rgba(0,255,120,0.5)';
+        } else if (pct > 0.25) {
+          bar.style.background = 'linear-gradient(90deg,#e65100,#ff9800,#ffcc02)';
+          bar.style.boxShadow  = '0 0 8px rgba(255,152,0,0.5)';
+        } else {
+          bar.style.background = 'linear-gradient(90deg,#b71c1c,#f44336,#ff5252)';
+          bar.style.boxShadow  = '0 0 8px rgba(244,67,54,0.6)';
+        }
       }
+      // Ring
+      const ring = document.getElementById('q-ring-fill');
+      const CIRC = 119.38;
+      if (ring) {
+        ring.style.strokeDashoffset = (CIRC * (1 - pct)).toFixed(2);
+        if (pct > 0.5)       ring.style.stroke = 'url(#qRingGrad)';
+        else if (pct > 0.25) ring.style.stroke = '#ff9800';
+        else                  ring.style.stroke = '#f44336';
+        ring.style.filter = pct <= 0.25
+          ? 'drop-shadow(0 0 5px rgba(244,67,54,0.8))'
+          : 'drop-shadow(0 0 4px rgba(0,255,120,0.5))';
+      }
+      // Number
+      const numEl = document.getElementById('q-timer-num');
+      if (numEl) {
+        numEl.textContent = numDisplay;
+        numEl.style.color = pct <= 0.25 ? '#ff5252' : '#fff';
+        numEl.style.textShadow = pct <= 0.25
+          ? '0 0 12px rgba(255,82,82,0.9)'
+          : '0 0 10px rgba(0,255,120,0.6)';
+      }
+    },
+
+    _answer(idx) {
+      // نوقف المؤقت أولاً بغض النظر عن questionActive لتجنب race condition
+      clearInterval(this._timerInterval);
+      if (!GameState.questionActive) return;
+
+      if (idx === this._currentQ.answer) {
+        // Correct flash
+        const fl = document.getElementById('q-flash-correct');
+        fl.classList.add('q-flash-on');
+        setTimeout(() => {
+          this._hideCard(() => {
+            GameState.questionActive = false;
+            if (this._onCorrect) this._onCorrect();
+          });
+        }, 120);
+      } else {
+        // Wrong shake + flash
+        const card = document.getElementById('q-card');
+        const flw  = document.getElementById('q-flash-wrong');
+        card.classList.add('q-card-shake');
+        flw.classList.add('q-flash-on');
+        setTimeout(() => flw.classList.remove('q-flash-on'), 300);
+        setTimeout(() => {
+          this._hideCard(() => {
+            GameState.questionActive = false;
+            if (this._onWrong) this._onWrong();
+          });
+        }, 460);
+      }
+    },
+
+    _hideCard(cb) {
+      const card = document.getElementById('q-card');
+      this._overlay.classList.remove('q-visible');
+      card.classList.add('q-card-out');
+      card.classList.remove('q-card-in');
+      if (window._releaseLook) window._releaseLook();
+      setTimeout(() => {
+        this._overlay.style.display = 'none';
+        card.classList.remove('q-card-out', 'q-card-shake');
+        document.body.style.overflow = 'hidden';
+        if (cb) cb();
+      }, 320);
     },
 
     _fail() {
       clearInterval(this._timerInterval);
-      this._overlay.style.display = 'none';
-      GameState.questionActive = false;
-      if (this._onWrong) this._onWrong();
+      // Wrong flash then hide
+      const flw = document.getElementById('q-flash-wrong');
+      flw.classList.add('q-flash-on');
+      setTimeout(() => {
+        this._hideCard(() => {
+          GameState.questionActive = false;
+          if (this._onWrong) this._onWrong();
+        });
+      }, 200);
     },
 
     hide() {
       clearInterval(this._timerInterval);
-      this._overlay.style.display = 'none';
-      GameState.questionActive = false;
-    }
-  };
-
-  const AmbushWallSystem = {
-    init(scene, maze, enemy, camera) {
-      this.scene = scene; this.maze = maze; this.enemy = enemy; this.camera = camera;
-      this.walls = []; this.safeRooms = []; this.lockers = []; this._hideTimer = 0;
-      this._nextEvent = 45 + Math.random() * 30;
-      this._fearAudio = new Audio('audio/enemy_sound.mp3');
-      this._fearAudio.volume = 0.85;
-      this._buildQuestionUI();
-      this._buildStaticHideables();
-      this._spawnAmbushWall(true);
-    },
-    _buildQuestionUI() {
-      const ui = document.createElement('div');
-      ui.id = 'wall-question-ui';
-      ui.style.cssText = 'position:fixed;inset:0;z-index:8800;display:none;align-items:center;justify-content:center;pointer-events:none;';
-      ui.innerHTML = `<div style="width:min(430px,92vw);background:rgba(10,14,10,.94);border:2px solid #6f201f;border-radius:14px;padding:12px;pointer-events:auto">
-      <div id="wall-flag" style="text-align:center;font-size:30px"></div><div id="wall-q" style="text-align:center;font-weight:800;margin:6px 0 10px"></div><div id="wall-choices" style="display:grid;gap:8px"></div></div>`;
-      document.getElementById('app').appendChild(ui); this._ui = ui;
-    },
-    _buildStaticHideables() {
-      const mat = new THREE.MeshStandardMaterial({ color: '#404c57', roughness: 0.9 });
-      const spots = [[5,6],[7,7],[9,6],[11,7],[13,6],[15,7],[17,6],[19,7]];
-      spots.forEach((s, i) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1.1,2.3,0.95), mat); m.position.set(s[0],1.15,s[1]); m.userData={type:'locker',idx:i}; this.scene.add(m); this.lockers.push(m); });
-      const roomSpots = [[28,28],[31,28],[34,28]];
-      roomSpots.forEach((s, i) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1.6,2.8,1.9), new THREE.MeshStandardMaterial({ color:'#2a2f34' })); m.position.set(s[0],1.4,s[1]); m.userData={type:'safe',idx:i}; this.scene.add(m); this.safeRooms.push(m); });
-    },
-    _spawnAmbushWall(initial = false) {
-      const g = new THREE.Group(), y0 = -2.7;
-      const q = CAPITAL_QUESTIONS[Math.floor(Math.random() * CAPITAL_QUESTIONS.length)];
-      const center = this.maze.getRandomFreeCell(this.camera.position, initial ? 6 : 9);
-      const side1 = new THREE.Mesh(new THREE.BoxGeometry(2.2,3.1,0.8), this.maze.wallMat); side1.position.set(-2.5,1.55,0);
-      const side2 = new THREE.Mesh(new THREE.BoxGeometry(2.2,3.1,0.8), this.maze.wallMat); side2.position.set(2.5,1.55,0);
-      const top = new THREE.Mesh(new THREE.BoxGeometry(2.8,0.85,0.8), this.maze.wallMat); top.position.set(0,2.67,0);
-      g.add(side1,side2,top); g.position.set(center.x,y0,center.z-2.2);
-      this.scene.add(g); this.walls.push({ g, q, active:false, shownAt:performance.now() });
-    },
-    update(delta, player) {
-      this._hideTimer += delta;
-      if (this._hideTimer >= this._nextEvent) { this._hideTimer = 0; this._nextEvent = 50 + Math.random() * 30; this._spawnAmbushWall(false); }
-      const now = performance.now();
-      for (const w of this.walls) {
-        if (!w.active) { w.g.position.y = Math.min(0, w.g.position.y + delta * 4.2); if (w.g.position.y >= -0.01) w.active = true; }
-        if (w.active && !GameState.questionActive && Math.hypot(player.camera.position.x-w.g.position.x, player.camera.position.z-w.g.position.z) < 2.6) this._showWallQuestion(w.q);
-      }
-      this._handleHideZones(player, now);
-    },
-    _showWallQuestion(q) {
-      GameState.questionActive = true; this._ui.style.display = 'flex';
-      document.getElementById('wall-flag').textContent = q.flag; document.getElementById('wall-q').textContent = q.q;
-      const c = document.getElementById('wall-choices'); c.innerHTML = '';
-      q.choices.forEach((txt, i) => { const b = document.createElement('button'); b.textContent = txt; b.style.cssText='padding:12px;border-radius:10px;border:none;font-weight:800;background:#1e3f61;color:#fff'; b.onclick=()=>{ this._ui.style.display='none'; GameState.questionActive=false; if(i!==q.answer){ GameState.hearts=Math.max(0,GameState.hearts-1); renderHearts(); } }; c.appendChild(b); });
-      setTimeout(() => { if (GameState.questionActive) { this._ui.style.display = 'none'; GameState.questionActive = false; GameState.hearts=Math.max(0,GameState.hearts-1); renderHearts(); } }, 5500);
-    },
-    _handleHideZones(player, now) {
-      const p = player.camera.position;
-      let mode = null;
-      for (const l of this.lockers) if (Math.hypot(p.x-l.position.x,p.z-l.position.z)<1.1) mode='locker';
-      for (const s of this.safeRooms) if (Math.hypot(p.x-s.position.x,p.z-s.position.z)<1.2) mode='safe';
-      if (mode && GameState.hideMode !== mode) { GameState.hideMode = { type: mode, start: now }; this.enemy.forceRetreat(p); }
-      if (!mode) GameState.hideMode = null;
-      if (GameState.hideMode && now - GameState.hideMode.start >= 15000) {
-        GameState.hearts = Math.max(0, GameState.hearts - 1); renderHearts(); this._fearAudio.currentTime = 0; this._fearAudio.play().catch(()=>{});
-        const img = document.createElement('img'); img.src='models/WEAM2.glb'; img.style.cssText='position:fixed;inset:20% 15%;z-index:9700;background:#000;border:2px solid #a00'; document.body.appendChild(img);
-        setTimeout(() => img.remove(), 700);
-        GameState.hideMode.start = now + 999999;
-      }
+      this._hideCard(() => {
+        GameState.questionActive = false;
+        document.body.style.overflow = 'hidden';
+      });
     }
   };
 
@@ -2297,6 +2769,7 @@
     },
     hide() {
       this._el.style.display = 'none';
+      GameState.gameOver = false;
       GameSettings.paused = false;
       if (this._onContinue) this._onContinue();
     }
@@ -2633,12 +3106,6 @@
       this._currentPath = null;
       this._pathStep = 1;
     }
-    forceRetreat(fromPos) {
-      const far = this.maze.getRandomFreeCell(fromPos, 16);
-      if (far) this.group.position.copy(far);
-      this._currentPath = null;
-      this._pathTimer = 999;
-    }
 
     // ---- فحص هل هناك جدار بين اللاعب والعدو (باستخدام colliders) ----
     _hasWallBetween(playerPos) {
@@ -2678,6 +3145,8 @@
       this._playerBoostTimer  = 5.0;
       this._playerBoosted     = true;
       this._currentEnemySpeed = this.BASE_PLAYER_SPEED - 0.2; // العدو أبطأ من اللاعب المقوّى
+      // تطبيق السرعة الإضافية على اللاعب فعلياً
+      if (this._playerRef) this._playerRef.speed = this.BASE_PLAYER_SPEED + 0.2;
 
       if (this._hp <= 0) this._die();
     }
@@ -2780,8 +3249,8 @@
       const cs = this.maze.cellSize;
       const doorR = Math.round(this.maze.doorPos.z / cs);
       const doorC = Math.round(this.maze.doorPos.x / cs);
-      // احجب خلية الباب وكل خلايا الغرفة خلفه (Z أصغر = rows أقل)
-      for (let r = 0; r <= doorR; r++) {
+      // احجب خلية الباب وخلايا الغرفة خلفه مباشرة فقط (2 صفوف قبل الباب)
+      for (let r = Math.max(0, doorR - 2); r <= doorR; r++) {
         for (let c = doorC - 2; c <= doorC + 2; c++) {
           if (r >= 0 && r < this._gridRows && c >= 0 && c < this._gridCols) {
             this._grid[r][c] = false;
@@ -2872,6 +3341,8 @@
     }
 
     update(delta, playerPos, playerRef) {
+      // --- حفظ مرجع اللاعب للاستخدام في hit() ---
+      this._playerRef = playerRef;
       // --- boost اللاعب countdown ---
       if (this._playerBoosted) {
         this._playerBoostTimer -= delta;
@@ -2879,6 +3350,8 @@
           this._playerBoosted    = false;
           this._playerBoostTimer = 0;
           this._currentEnemySpeed = this._baseEnemySpeed;
+          // إعادة سرعة اللاعب لطبيعتها عند انتهاء الـ boost
+          if (playerRef) playerRef.speed = this.BASE_PLAYER_SPEED;
         }
       }
 
@@ -3303,7 +3776,7 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && menuOpen) closeMenu(); });
 
     // ===== تهيئة أولية =====
-    GFX._autoTier = GFX.tier; // نحفظ المستوى المكتشف تلقائياً
+    GFX._autoTier = GFX.tier; // نحفظ المستوى المكتشف تلقائياً — يجب قبل syncUI
     syncUI(GFX.tier);
 
   }
@@ -3356,7 +3829,6 @@
 
   // ---- إنشاء العدو ----
   const enemy = new EnemySystem(scene, maze, camera);
-  AmbushWallSystem.init(scene, maze, enemy, camera);
 
   // ---- تهيئة نظام الخريطة ----
   MapOverlay.init(maze, enemy, camera);
@@ -3388,7 +3860,7 @@
   let _lastShotCheck = 0;
 
   function checkShotHit(time) {
-    if (time - _lastShotCheck < 115) return;
+    if (time - _lastShotCheck < 130) return;
     // نتحقق فقط لو اللاعب أطلق للتو
     const justFired = player.hasWeapon &&
       (player.firePressed || player.keys['KeyF']) &&
@@ -3450,7 +3922,6 @@
     if (!GameSettings.paused) {
       player.update(delta, time);
       enemy.update(delta, camera.position, player);
-      AmbushWallSystem.update(delta, player);
       if (doHeavy) checkShotHit(time);
 
       // --- جمع المفاتيح ---
