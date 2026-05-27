@@ -1885,6 +1885,13 @@
     { q: "كم ناتج: 12 + 13 ؟",                choices: ["23", "25", "27"],         answer: 2 },
     { q: "كم ناتج: 18 + 7 ؟",                 choices: ["23", "25", "27"],         answer: 1 },
   ];
+  const CAPITAL_QUESTIONS = [
+    { country: 'السعودية', flag: '🇸🇦', q: 'ما عاصمة السعودية؟', choices: ['الرياض', 'جدة', 'الدمام'], answer: 0 },
+    { country: 'مصر', flag: '🇪🇬', q: 'ما عاصمة مصر؟', choices: ['الإسكندرية', 'القاهرة', 'الأقصر'], answer: 1 },
+    { country: 'اليابان', flag: '🇯🇵', q: 'ما عاصمة اليابان؟', choices: ['أوساكا', 'طوكيو', 'كيوتو'], answer: 1 },
+    { country: 'فرنسا', flag: '🇫🇷', q: 'ما عاصمة فرنسا؟', choices: ['مارسيليا', 'ليون', 'باريس'], answer: 2 },
+    { country: 'المغرب', flag: '🇲🇦', q: 'ما عاصمة المغرب؟', choices: ['الرباط', 'طنجة', 'فاس'], answer: 0 },
+  ];
 
   // ============================================================
   //  HEARTS & GAME STATE
@@ -1901,6 +1908,7 @@
     hasMap: true,
     mapRevealed: false,
     startTime: performance.now(),
+    hideMode: null,
   };
 
   // ---- رسم القلوب SVG في الـ HUD ----
@@ -2104,6 +2112,75 @@
       clearInterval(this._timerInterval);
       this._overlay.style.display = 'none';
       GameState.questionActive = false;
+    }
+  };
+
+  const AmbushWallSystem = {
+    init(scene, maze, enemy, camera) {
+      this.scene = scene; this.maze = maze; this.enemy = enemy; this.camera = camera;
+      this.walls = []; this.safeRooms = []; this.lockers = []; this._hideTimer = 0;
+      this._nextEvent = 45 + Math.random() * 30;
+      this._fearAudio = new Audio('audio/enemy_sound.mp3');
+      this._fearAudio.volume = 0.85;
+      this._buildQuestionUI();
+      this._buildStaticHideables();
+      this._spawnAmbushWall(true);
+    },
+    _buildQuestionUI() {
+      const ui = document.createElement('div');
+      ui.id = 'wall-question-ui';
+      ui.style.cssText = 'position:fixed;inset:0;z-index:8800;display:none;align-items:center;justify-content:center;pointer-events:none;';
+      ui.innerHTML = `<div style="width:min(430px,92vw);background:rgba(10,14,10,.94);border:2px solid #6f201f;border-radius:14px;padding:12px;pointer-events:auto">
+      <div id="wall-flag" style="text-align:center;font-size:30px"></div><div id="wall-q" style="text-align:center;font-weight:800;margin:6px 0 10px"></div><div id="wall-choices" style="display:grid;gap:8px"></div></div>`;
+      document.getElementById('app').appendChild(ui); this._ui = ui;
+    },
+    _buildStaticHideables() {
+      const mat = new THREE.MeshStandardMaterial({ color: '#404c57', roughness: 0.9 });
+      const spots = [[5,6],[7,7],[9,6],[11,7],[13,6],[15,7],[17,6],[19,7]];
+      spots.forEach((s, i) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1.1,2.3,0.95), mat); m.position.set(s[0],1.15,s[1]); m.userData={type:'locker',idx:i}; this.scene.add(m); this.lockers.push(m); });
+      const roomSpots = [[28,28],[31,28],[34,28]];
+      roomSpots.forEach((s, i) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1.6,2.8,1.9), new THREE.MeshStandardMaterial({ color:'#2a2f34' })); m.position.set(s[0],1.4,s[1]); m.userData={type:'safe',idx:i}; this.scene.add(m); this.safeRooms.push(m); });
+    },
+    _spawnAmbushWall(initial = false) {
+      const g = new THREE.Group(), y0 = -2.7;
+      const q = CAPITAL_QUESTIONS[Math.floor(Math.random() * CAPITAL_QUESTIONS.length)];
+      const center = this.maze.getRandomFreeCell(this.camera.position, initial ? 6 : 9);
+      const side1 = new THREE.Mesh(new THREE.BoxGeometry(2.2,3.1,0.8), this.maze.wallMat); side1.position.set(-2.5,1.55,0);
+      const side2 = new THREE.Mesh(new THREE.BoxGeometry(2.2,3.1,0.8), this.maze.wallMat); side2.position.set(2.5,1.55,0);
+      const top = new THREE.Mesh(new THREE.BoxGeometry(2.8,0.85,0.8), this.maze.wallMat); top.position.set(0,2.67,0);
+      g.add(side1,side2,top); g.position.set(center.x,y0,center.z-2.2);
+      this.scene.add(g); this.walls.push({ g, q, active:false, shownAt:performance.now() });
+    },
+    update(delta, player) {
+      this._hideTimer += delta;
+      if (this._hideTimer >= this._nextEvent) { this._hideTimer = 0; this._nextEvent = 50 + Math.random() * 30; this._spawnAmbushWall(false); }
+      const now = performance.now();
+      for (const w of this.walls) {
+        if (!w.active) { w.g.position.y = Math.min(0, w.g.position.y + delta * 4.2); if (w.g.position.y >= -0.01) w.active = true; }
+        if (w.active && !GameState.questionActive && Math.hypot(player.camera.position.x-w.g.position.x, player.camera.position.z-w.g.position.z) < 2.6) this._showWallQuestion(w.q);
+      }
+      this._handleHideZones(player, now);
+    },
+    _showWallQuestion(q) {
+      GameState.questionActive = true; this._ui.style.display = 'flex';
+      document.getElementById('wall-flag').textContent = q.flag; document.getElementById('wall-q').textContent = q.q;
+      const c = document.getElementById('wall-choices'); c.innerHTML = '';
+      q.choices.forEach((txt, i) => { const b = document.createElement('button'); b.textContent = txt; b.style.cssText='padding:12px;border-radius:10px;border:none;font-weight:800;background:#1e3f61;color:#fff'; b.onclick=()=>{ this._ui.style.display='none'; GameState.questionActive=false; if(i!==q.answer){ GameState.hearts=Math.max(0,GameState.hearts-1); renderHearts(); } }; c.appendChild(b); });
+      setTimeout(() => { if (GameState.questionActive) { this._ui.style.display = 'none'; GameState.questionActive = false; GameState.hearts=Math.max(0,GameState.hearts-1); renderHearts(); } }, 5500);
+    },
+    _handleHideZones(player, now) {
+      const p = player.camera.position;
+      let mode = null;
+      for (const l of this.lockers) if (Math.hypot(p.x-l.position.x,p.z-l.position.z)<1.1) mode='locker';
+      for (const s of this.safeRooms) if (Math.hypot(p.x-s.position.x,p.z-s.position.z)<1.2) mode='safe';
+      if (mode && GameState.hideMode !== mode) { GameState.hideMode = { type: mode, start: now }; this.enemy.forceRetreat(p); }
+      if (!mode) GameState.hideMode = null;
+      if (GameState.hideMode && now - GameState.hideMode.start >= 15000) {
+        GameState.hearts = Math.max(0, GameState.hearts - 1); renderHearts(); this._fearAudio.currentTime = 0; this._fearAudio.play().catch(()=>{});
+        const img = document.createElement('img'); img.src='models/WEAM2.glb'; img.style.cssText='position:fixed;inset:20% 15%;z-index:9700;background:#000;border:2px solid #a00'; document.body.appendChild(img);
+        setTimeout(() => img.remove(), 700);
+        GameState.hideMode.start = now + 999999;
+      }
     }
   };
 
@@ -2555,6 +2632,12 @@
       this._pathTimer = 999;
       this._currentPath = null;
       this._pathStep = 1;
+    }
+    forceRetreat(fromPos) {
+      const far = this.maze.getRandomFreeCell(fromPos, 16);
+      if (far) this.group.position.copy(far);
+      this._currentPath = null;
+      this._pathTimer = 999;
     }
 
     // ---- فحص هل هناك جدار بين اللاعب والعدو (باستخدام colliders) ----
@@ -3273,6 +3356,7 @@
 
   // ---- إنشاء العدو ----
   const enemy = new EnemySystem(scene, maze, camera);
+  AmbushWallSystem.init(scene, maze, enemy, camera);
 
   // ---- تهيئة نظام الخريطة ----
   MapOverlay.init(maze, enemy, camera);
@@ -3366,6 +3450,7 @@
     if (!GameSettings.paused) {
       player.update(delta, time);
       enemy.update(delta, camera.position, player);
+      AmbushWallSystem.update(delta, player);
       if (doHeavy) checkShotHit(time);
 
       // --- جمع المفاتيح ---
