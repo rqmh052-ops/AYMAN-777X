@@ -294,10 +294,236 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+
+    /* ===== شاشة الاختيار الرئيسية (فردي / أون لاين) ===== */
+    #main-menu {
+      position: fixed; inset: 0; z-index: 9000;
+      background: radial-gradient(ellipse at 50% 30%, #0d1f10 0%, #060c06 70%, #020502 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-family: system-ui, sans-serif; direction: rtl;
+    }
+    #main-menu .mm-title {
+      font-size: clamp(22px, 5vw, 38px); font-weight: 900;
+      color: #edd56a; text-shadow: 0 0 30px rgba(237,213,106,0.5);
+      margin-bottom: 10px; letter-spacing: 1px;
+    }
+    #main-menu .mm-sub {
+      font-size: 13px; color: rgba(196,207,190,0.5); margin-bottom: 44px;
+    }
+    .mm-btn {
+      width: min(260px, 82vw); padding: 15px 20px;
+      border-radius: 14px; border: 1.5px solid rgba(237,213,106,0.25);
+      background: rgba(20,28,18,0.92); color: #eef2f6;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 14px; transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      text-align: right;
+    }
+    .mm-btn:active { transform: scale(0.97); }
+    .mm-btn:hover { background: rgba(35,48,28,0.98); border-color: rgba(237,213,106,0.5); }
+    .mm-btn .mm-icon { font-size: 26px; flex-shrink: 0; }
+    .mm-btn .mm-label { flex: 1; }
+    .mm-btn .mm-label small { display: block; font-size: 11px; font-weight: 400; color: rgba(196,207,190,0.6); margin-top: 2px; }
+
+    /* ===== قائمة الأون لاين ===== */
+    #online-menu {
+      position: fixed; inset: 0; z-index: 9001;
+      background: rgba(0,0,0,0.88); backdrop-filter: blur(6px);
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      font-family: system-ui, sans-serif; direction: rtl;
+    }
+    #online-menu.visible { display: flex; }
+    .om-card {
+      width: min(340px, 94vw); background: rgba(12,18,10,0.97);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 18px;
+      padding: 22px 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    }
+    .om-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+    }
+    .om-back {
+      background: none; border: 1px solid rgba(255,255,255,0.15);
+      color: #eef2f6; padding: 5px 10px; border-radius: 8px;
+      font-size: 13px; cursor: pointer;
+    }
+    .om-back:active { transform: scale(0.95); }
+    .om-title { font-size: 18px; font-weight: 800; color: #edd56a; flex: 1; text-align: center; }
+    .om-section-title {
+      font-size: 12px; font-weight: 700; color: rgba(237,213,106,0.7);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 10px; margin-top: 18px;
+    }
+    .om-section-title:first-of-type { margin-top: 0; }
+    .om-action-btn {
+      width: 100%; padding: 13px 16px; border-radius: 11px;
+      background: rgba(237,213,106,0.1); border: 1.5px solid rgba(237,213,106,0.25);
+      color: #eef2f6; font-size: 15px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; gap: 10px;
+      transition: background 0.12s, border-color 0.12s, transform 0.08s;
+      direction: rtl; text-align: right;
+    }
+    .om-action-btn:hover { background: rgba(237,213,106,0.18); border-color: rgba(237,213,106,0.5); }
+    .om-action-btn:active { transform: scale(0.97); }
+    .om-action-btn .oa-icon { font-size: 20px; }
+
+    /* اللوحة الانزلاقية للغرف */
+    .om-rooms-label {
+      font-size: 12px; color: rgba(196,207,190,0.5);
+      margin: 12px 0 8px 0; text-align: center;
+    }
+    #rooms-slider-wrap {
+      height: 200px; overflow-y: auto; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.3); padding: 6px;
+      scroll-behavior: smooth;
+    }
+    #rooms-slider-wrap::-webkit-scrollbar { width: 4px; }
+    #rooms-slider-wrap::-webkit-scrollbar-thumb { background: rgba(237,213,106,0.3); border-radius: 99px; }
+    .room-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 10px; border-radius: 8px; margin-bottom: 5px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+      transition: background 0.1s;
+    }
+    .room-item:last-child { margin-bottom: 0; }
+    .room-name { font-size: 13px; font-weight: 700; color: #eef2f6; flex: 1; direction: ltr; text-align: left; }
+    .room-count { font-size: 12px; font-weight: 700; color: #edd56a; min-width: 34px; text-align: center; }
+    .room-join-btn {
+      padding: 6px 12px; border-radius: 20px;
+      background: transparent; border: 2px solid #3b9eff;
+      color: #fff; font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: background 0.12s, transform 0.08s;
+      position: relative; overflow: hidden;
+    }
+    .room-join-btn::before {
+      content: ''; position: absolute; inset: -2px; border-radius: 22px;
+      border: 1.5px solid rgba(59,158,255,0.35);
+    }
+    .room-join-btn:hover { background: rgba(59,158,255,0.18); }
+    .room-join-btn:active { transform: scale(0.94); }
+    .rooms-empty { text-align: center; color: rgba(196,207,190,0.4); font-size: 13px; padding: 30px 10px; }
+
+    /* ===== أون لاين HUD (داخل اللعبة) ===== */
+    #online-hud {
+      position: absolute; top: 44px; left: 8px;
+      pointer-events: none; z-index: 12; display: none;
+    }
+    #online-hud.active { display: block; }
+    .online-player-pill {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(13,17,16,0.88); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 999px; padding: 4px 10px; margin-bottom: 4px;
+      font-size: 11px; font-weight: 700; color: #eef2f6;
+    }
+    .online-player-pill .op-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    /* أزرار مايك وصوت */
+    #voice-controls {
+      position: absolute; bottom: 160px; left: 18px;
+      display: none; flex-direction: column; gap: 8px;
+      pointer-events: auto; z-index: 12;
+    }
+    #voice-controls.active { display: flex; }
+    .vc-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(13,17,16,0.92); border: 1.5px solid rgba(255,255,255,0.18);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background 0.12s, border-color 0.12s, transform 0.08s;
+      color: #eef2f6; position: relative;
+    }
+    .vc-btn:active { transform: scale(0.9); }
+    .vc-btn.muted { border-color: rgba(255,80,80,0.6); background: rgba(60,0,0,0.7); }
+    .vc-btn svg { width: 20px; height: 20px; }
+    .vc-btn .vc-slash {
+      position: absolute; inset: 0; display: none;
+      align-items: center; justify-content: center; border-radius: 50%;
+    }
+    .vc-btn.muted .vc-slash { display: flex; }
+    .vc-btn.muted .vc-slash::after {
+      content: ''; position: absolute;
+      width: 2px; height: 130%; background: rgba(255,80,80,0.85);
+      transform: rotate(45deg); border-radius: 2px;
+    }
+
+    /* تأثير الدخول للغرفة */
+    @keyframes room-join-flash {
+      0%   { opacity: 0; transform: scale(1.08); }
+      30%  { opacity: 1; }
+      100% { opacity: 0; transform: scale(1); }
+    }
+    #room-join-flash {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(59,158,255,0.2);
+      pointer-events: none; opacity: 0; display: none;
+    }
+    #room-join-flash.flash { display: block; animation: room-join-flash 0.6s ease forwards; }
+
+    /* إشعارات الأون لاين */
+    #online-toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: rgba(10,14,10,0.96); border: 1px solid rgba(59,158,255,0.4);
+      color: #7ab8ff; font-size: 12px; font-weight: 700;
+      padding: 8px 18px; border-radius: 99px; pointer-events: none;
+      z-index: 9998; opacity: 0; transition: opacity 0.25s;
+      white-space: nowrap; font-family: system-ui, sans-serif;
+    }
+    #online-toast.show { opacity: 1; }
+
+    /* شاشة PC: لا تُظهر أزرار الصوت على الموبايل فقط بشكل مختلف */
+    @media (hover: hover) and (pointer: fine) {
+      #voice-controls { bottom: 20px; }
+    }
   </style>
 </head>
 <body>
   <div id="app">
+    <!-- ===== شاشة الاختيار الرئيسية ===== -->
+    <div id="main-menu">
+      <div class="mm-title">🏚️ School Maze Horror</div>
+      <div class="mm-sub">اختر طريقة اللعب</div>
+      <button class="mm-btn" id="mm-solo-btn">
+        <span class="mm-icon">🎮</span>
+        <span class="mm-label">
+          فردي
+          <small>العب بمفردك — ابدأ اللعبة مباشرة</small>
+        </span>
+      </button>
+      <button class="mm-btn" id="mm-online-btn">
+        <span class="mm-icon">🌐</span>
+        <span class="mm-label">
+          أون لاين
+          <small>العب مع أصدقاء في غرف متعددة</small>
+        </span>
+      </button>
+    </div>
+
+    <!-- ===== قائمة الأون لاين ===== -->
+    <div id="online-menu">
+      <div class="om-card">
+        <div class="om-header">
+          <button class="om-back" id="om-back-btn">← رجوع</button>
+          <div class="om-title">🌐 أون لاين</div>
+        </div>
+
+        <div class="om-section-title">إنشاء لعبة</div>
+        <button class="om-action-btn" id="om-create-btn">
+          <span class="oa-icon">➕</span>
+          <span>إنشاء غرفة جديدة</span>
+        </button>
+
+        <div class="om-section-title">الانضمام إلى غرفة</div>
+        <div id="rooms-slider-wrap">
+          <div class="rooms-empty">جاري تحديث الغرف...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- فلاش دخول الغرفة -->
+    <div id="room-join-flash"></div>
+    <!-- إشعار أون لاين -->
+    <div id="online-toast"></div>
     <canvas id="game"></canvas>
     <div id="hud">
       <div id="top-controls">
@@ -386,6 +612,32 @@
       </style>
     </div>
     <div id="crosshair"></div>
+
+    <!-- أون لاين HUD — اللاعبون في الغرفة -->
+    <div id="online-hud"></div>
+
+    <!-- أزرار الصوت والمايك -->
+    <div id="voice-controls">
+      <!-- زر كتم الصوت -->
+      <div class="vc-btn" id="vc-audio-btn" title="كتم صوت اللاعبين">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>
+        <div class="vc-slash"></div>
+      </div>
+      <!-- زر المايك -->
+      <div class="vc-btn" id="vc-mic-btn" title="إيقاف المايك">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+        <div class="vc-slash"></div>
+      </div>
+    </div>
     <div id="mobile-ui">
       <div id="joystick"><div class="knob"></div></div>
       <div id="btn-fire" class="action-btn">
@@ -4001,6 +4253,378 @@
   }
 
   loop(performance.now());
+
+  // ============================================================
+  //  ONLINE SYSTEM  — نظام حقيقي Socket.io + WebRTC
+  // ============================================================
+  (function() {
+
+    const SERVER_URL = 'https://divine-dream-srf.up.railway.app';
+    const PLAYER_COLORS = ['#00ff88','#ff6644','#44aaff','#ffdd00'];
+
+    // ===== الحالة =====
+    const OnlineState = {
+      socket:        null,
+      myId:          null,
+      inRoom:        false,
+      roomId:        null,
+      roomName:      null,
+      players:       {},      // { socketId: { name, stream, pc } }
+      micEnabled:    true,
+      audioEnabled:  true,
+      localStream:   null,
+      _toastTimer:   null,
+    };
+
+    // STUN servers مجانية من Google
+    const RTC_CONFIG = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ]
+    };
+
+    // ===== مولّد اسم غرفة =====
+    function genRoomName() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let n = '';
+      for (let i = 0; i < 10; i++) n += chars[Math.floor(Math.random() * chars.length)];
+      return n;
+    }
+
+    // ===== Toast =====
+    function showOnlineToast(msg, dur = 2800) {
+      const el = document.getElementById('online-toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      if (OnlineState._toastTimer) clearTimeout(OnlineState._toastTimer);
+      OnlineState._toastTimer = setTimeout(() => el.classList.remove('show'), dur);
+    }
+
+    // ===== فلاش دخول =====
+    function doJoinFlash() {
+      const el = document.getElementById('room-join-flash');
+      el.classList.remove('flash');
+      void el.offsetWidth;
+      el.classList.add('flash');
+      el.addEventListener('animationend', () => el.classList.remove('flash'), { once: true });
+    }
+
+    // ===== تحديث HUD =====
+    function updateOnlineHUD() {
+      const hud = document.getElementById('online-hud');
+      const players = Object.values(OnlineState.players);
+      if (!OnlineState.inRoom || players.length === 0) {
+        hud.classList.remove('active'); return;
+      }
+      hud.classList.add('active');
+      hud.innerHTML = players.map((p, i) =>
+        `<div class="online-player-pill">
+          <div class="op-dot" style="background:${PLAYER_COLORS[i % PLAYER_COLORS.length]}"></div>
+          <span>${p.name}</span>
+        </div>`
+      ).join('');
+    }
+
+    // ===== رندر قائمة الغرف =====
+    function renderRooms(rooms) {
+      const wrap = document.getElementById('rooms-slider-wrap');
+      if (!rooms || rooms.length === 0) {
+        wrap.innerHTML = '<div class="rooms-empty">لا توجد غرف متاحة حالياً<br><small style="opacity:.5">أنشئ غرفة جديدة!</small></div>';
+        return;
+      }
+      wrap.innerHTML = rooms.map(room => {
+        const full = room.players >= room.max;
+        return `<div class="room-item">
+          <span class="room-name">${room.name}</span>
+          <span class="room-count">${room.players}/${room.max}</span>
+          <button class="room-join-btn" data-id="${room.id}" data-name="${room.name}"
+            ${full ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>انضم</button>
+        </div>`;
+      }).join('');
+      wrap.querySelectorAll('.room-join-btn:not([disabled])').forEach(btn => {
+        const handler = () => joinRoom(btn.dataset.id, btn.dataset.name);
+        btn.addEventListener('click', handler);
+        btn.addEventListener('touchend', e => { e.preventDefault(); handler(); }, { passive: false });
+      });
+    }
+
+    // ===== WebRTC: إنشاء PeerConnection مع لاعب =====
+    function createPeer(targetId, initiator) {
+      const pc = new RTCPeerConnection(RTC_CONFIG);
+
+      // أضف المايك المحلي
+      if (OnlineState.localStream) {
+        OnlineState.localStream.getTracks().forEach(t => pc.addTrack(t, OnlineState.localStream));
+      }
+
+      // استقبل صوت اللاعب التاني
+      pc.ontrack = (e) => {
+        if (!OnlineState.audioEnabled) return;
+        const audio = new Audio();
+        audio.srcObject = e.streams[0];
+        audio.autoplay  = true;
+        if (OnlineState.players[targetId]) OnlineState.players[targetId].audio = audio;
+      };
+
+      // إرسال ICE candidates
+      pc.onicecandidate = (e) => {
+        if (e.candidate && OnlineState.socket) {
+          OnlineState.socket.emit('webrtc-ice', { to: targetId, candidate: e.candidate });
+        }
+      };
+
+      if (OnlineState.players[targetId]) OnlineState.players[targetId].pc = pc;
+
+      // لو أنت البادئ — أرسل offer
+      if (initiator) {
+        pc.createOffer().then(offer => {
+          pc.setLocalDescription(offer);
+          OnlineState.socket.emit('webrtc-offer', { to: targetId, offer });
+        });
+      }
+      return pc;
+    }
+
+    // ===== طلب المايك =====
+    async function getMic() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        OnlineState.localStream = stream;
+        // لو المايك متكتم من البداية — وقف التراك
+        if (!OnlineState.micEnabled) stream.getAudioTracks().forEach(t => t.enabled = false);
+        return true;
+      } catch (e) {
+        console.warn('[MIC] لا يوجد وصول للمايك:', e.message);
+        showOnlineToast('⚠ لم يتم الوصول للمايك', 3000);
+        return false;
+      }
+    }
+
+    // ===== دخول اللعبة بعد الانضمام =====
+    function enterGame(roomId, roomName) {
+      OnlineState.inRoom   = true;
+      OnlineState.roomId   = roomId;
+      OnlineState.roomName = roomName;
+
+      document.getElementById('online-menu').classList.remove('visible');
+      document.getElementById('main-menu').style.display = 'none';
+      document.getElementById('settings-overlay').classList.remove('hidden');
+      document.getElementById('voice-controls').classList.add('active');
+
+      doJoinFlash();
+      showOnlineToast(`✓ انضممت إلى "${roomName}"`, 3000);
+      updateOnlineHUD();
+    }
+
+    // ===== الانضمام لغرفة =====
+    async function joinRoom(id, name) {
+      if (!OnlineState.socket || !OnlineState.socket.connected) {
+        showOnlineToast('⚠ انتظر الاتصال بالسيرفر...', 2000); return;
+      }
+      await getMic();
+      OnlineState.socket.emit('join-room', { roomId: id, playerName: 'لاعب' });
+    }
+
+    // ===== إنشاء غرفة =====
+    async function createRoom() {
+      if (!OnlineState.socket || !OnlineState.socket.connected) {
+        showOnlineToast('⚠ انتظر الاتصال بالسيرفر...', 2000); return;
+      }
+      await getMic();
+      const name = genRoomName();
+      OnlineState.socket.emit('create-room', { roomName: name, playerName: 'لاعب' });
+    }
+
+    // ===== اللعب الفردي =====
+    function startSolo() {
+      document.getElementById('main-menu').style.display = 'none';
+      document.getElementById('settings-overlay').classList.remove('hidden');
+    }
+
+    // ===== Socket.io: الاتصال بالسيرفر =====
+    function connectSocket() {
+      // تحميل socket.io من CDN
+      const script = document.createElement('script');
+      script.src = 'https://cdn.socket.io/4.7.2/socket.io.min.js';
+      script.onload = () => {
+        const socket = io(SERVER_URL, { transports: ['websocket','polling'] });
+        OnlineState.socket = socket;
+
+        socket.on('connect', () => {
+          OnlineState.myId = socket.id;
+          console.log('[Socket] متصل:', socket.id);
+          showOnlineToast('✅ متصل بالسيرفر', 1800);
+          // تحديث حالة الاتصال في الواجهة
+          const ind = document.getElementById('server-indicator');
+          if (ind) { ind.style.background = '#00ff88'; ind.title = 'متصل'; }
+        });
+
+        socket.on('disconnect', () => {
+          console.warn('[Socket] انقطع الاتصال');
+          showOnlineToast('⚠ انقطع الاتصال بالسيرفر', 3000);
+          const ind = document.getElementById('server-indicator');
+          if (ind) { ind.style.background = '#ff4444'; ind.title = 'غير متصل'; }
+        });
+
+        socket.on('connect_error', () => {
+          const ind = document.getElementById('server-indicator');
+          if (ind) { ind.style.background = '#ffaa00'; ind.title = 'جاري الاتصال...'; }
+        });
+
+        // قائمة الغرف المحدّثة
+        socket.on('room-list', (rooms) => {
+          renderRooms(rooms);
+        });
+
+        // تأكيد الدخول للغرفة
+        socket.on('room-joined', ({ roomId, roomName, players }) => {
+          // أضف اللاعبين الموجودين
+          Object.entries(players).forEach(([id, p]) => {
+            if (id !== socket.id) {
+              OnlineState.players[id] = { name: p.name };
+            }
+          });
+          OnlineState.players[socket.id] = { name: 'أنت' };
+          enterGame(roomId, roomName);
+
+          // ابدأ WebRTC مع كل لاعب موجود
+          Object.keys(players).forEach(id => {
+            if (id !== socket.id) createPeer(id, true);
+          });
+        });
+
+        // لاعب جديد دخل
+        socket.on('player-joined', ({ id, name }) => {
+          OnlineState.players[id] = { name };
+          updateOnlineHUD();
+          showOnlineToast(`⬆ دخل ${name}`, 2000);
+          // اللاعب الجديد هو المبادر — انتظر offer منه
+          if (!OnlineState.players[id].pc) {
+            OnlineState.players[id].pc = createPeer(id, false);
+          }
+        });
+
+        // لاعب خرج
+        socket.on('player-left', ({ id }) => {
+          const p = OnlineState.players[id];
+          if (p) {
+            if (p.pc)    { p.pc.close(); }
+            if (p.audio) { p.audio.pause(); p.audio.srcObject = null; }
+            showOnlineToast(`⬇ خرج ${p.name}`, 2000);
+            delete OnlineState.players[id];
+            updateOnlineHUD();
+          }
+        });
+
+        // WebRTC signaling
+        socket.on('webrtc-offer', async ({ from, offer }) => {
+          if (!OnlineState.players[from]) OnlineState.players[from] = { name: 'لاعب' };
+          const pc = OnlineState.players[from].pc || createPeer(from, false);
+          OnlineState.players[from].pc = pc;
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          socket.emit('webrtc-answer', { to: from, answer });
+        });
+
+        socket.on('webrtc-answer', async ({ from, answer }) => {
+          const pc = OnlineState.players[from]?.pc;
+          if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+
+        socket.on('webrtc-ice', async ({ from, candidate }) => {
+          const pc = OnlineState.players[from]?.pc;
+          if (pc) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e) {}
+          }
+        });
+
+        socket.on('error', (msg) => showOnlineToast('⚠ ' + msg, 3000));
+      };
+      script.onerror = () => showOnlineToast('⚠ فشل تحميل Socket.io', 3000);
+      document.head.appendChild(script);
+    }
+
+    // ===== أزرار الصوت والمايك =====
+    function initVoiceControls() {
+      const micBtn   = document.getElementById('vc-mic-btn');
+      const audioBtn = document.getElementById('vc-audio-btn');
+
+      function toggleMic(e) {
+        e.stopPropagation();
+        OnlineState.micEnabled = !OnlineState.micEnabled;
+        // فعّل/أوقف تراكات المايك الحقيقية
+        if (OnlineState.localStream) {
+          OnlineState.localStream.getAudioTracks().forEach(t => t.enabled = OnlineState.micEnabled);
+        }
+        micBtn.classList.toggle('muted', !OnlineState.micEnabled);
+        showOnlineToast(OnlineState.micEnabled ? '🎙 المايك مفتوح' : '🔇 المايك مغلق', 1800);
+      }
+
+      function toggleAudio(e) {
+        e.stopPropagation();
+        OnlineState.audioEnabled = !OnlineState.audioEnabled;
+        // كتم/فتح صوت كل اللاعبين
+        Object.values(OnlineState.players).forEach(p => {
+          if (p.audio) p.audio.muted = !OnlineState.audioEnabled;
+        });
+        audioBtn.classList.toggle('muted', !OnlineState.audioEnabled);
+        showOnlineToast(OnlineState.audioEnabled ? '🔊 صوت اللاعبين مفتوح' : '🔈 صوت اللاعبين مكتوم', 1800);
+      }
+
+      micBtn.addEventListener('click', toggleMic);
+      micBtn.addEventListener('touchend', e => { e.preventDefault(); toggleMic(e); }, { passive: false });
+      audioBtn.addEventListener('click', toggleAudio);
+      audioBtn.addEventListener('touchend', e => { e.preventDefault(); toggleAudio(e); }, { passive: false });
+    }
+
+    // ===== القائمة الرئيسية =====
+    function initMainMenu() {
+      const soloBtn   = document.getElementById('mm-solo-btn');
+      const onlineBtn = document.getElementById('mm-online-btn');
+      const backBtn   = document.getElementById('om-back-btn');
+      const createBtn = document.getElementById('om-create-btn');
+
+      soloBtn.addEventListener('click',    () => startSolo());
+      soloBtn.addEventListener('touchend', e => { e.preventDefault(); startSolo(); }, { passive: false });
+
+      onlineBtn.addEventListener('click',    () => document.getElementById('online-menu').classList.add('visible'));
+      onlineBtn.addEventListener('touchend', e => { e.preventDefault(); document.getElementById('online-menu').classList.add('visible'); }, { passive: false });
+
+      backBtn.addEventListener('click',    () => document.getElementById('online-menu').classList.remove('visible'));
+      backBtn.addEventListener('touchend', e => { e.preventDefault(); document.getElementById('online-menu').classList.remove('visible'); }, { passive: false });
+
+      createBtn.addEventListener('click',    () => createRoom());
+      createBtn.addEventListener('touchend', e => { e.preventDefault(); createRoom(); }, { passive: false });
+    }
+
+    // ===== مؤشر حالة الاتصال في واجهة الأون لاين =====
+    function addServerIndicator() {
+      const card = document.querySelector('.om-card');
+      if (!card) return;
+      const ind = document.createElement('div');
+      ind.id = 'server-indicator';
+      ind.title = 'جاري الاتصال...';
+      ind.style.cssText = `
+        width:8px;height:8px;border-radius:50%;background:#ffaa00;
+        position:absolute;top:14px;left:14px;
+        box-shadow:0 0 6px currentColor;transition:background 0.3s;
+      `;
+      card.style.position = 'relative';
+      card.appendChild(ind);
+    }
+
+    // ===== إطلاق النظام =====
+    initMainMenu();
+    initVoiceControls();
+    addServerIndicator();
+    connectSocket();
+
+    // إخفاء overlay الإعدادات في البداية
+    document.getElementById('settings-overlay').classList.add('hidden');
+
+  })(); // end ONLINE SYSTEM
   </script>
 </body>
 </html>
