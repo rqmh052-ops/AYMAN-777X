@@ -1997,10 +1997,10 @@
         if (GameSettings.paused) return false;
         if (GameState.questionActive) return false;
         if (e.target.closest('#question-overlay')) return false;
-        if (e.target.closest('.action-btn')) return false;
         if (e.target.closest('#top-controls')) return false;
         if (e.target.closest('#joystick')) return false;
-        // الجانب الأيمن من الشاشة (35% أو أكثر) — يعمل بغض النظر عن عرض الشاشة
+        // السماح للـ aim حتى لو الضغط على زر النار أو أي زر action
+        // الجانب الأيمن من الشاشة (35% أو أكثر)
         return e.clientX >= window.innerWidth * 0.35;
       };
 
@@ -2029,10 +2029,33 @@
       // دالة عامة لإيقاف نظام النظر من أي مكان (تستخدمها نافذة الأسئلة)
       window._releaseLook = () => { lookId = null; };
 
-      document.getElementById('btn-fire').addEventListener('pointerdown',    e => { e.preventDefault(); if (!GameSettings.paused) this.firePressed = true; });
-      document.getElementById('btn-fire').addEventListener('pointerup',      e => { e.preventDefault(); this.firePressed = false; });
-      document.getElementById('btn-interact').addEventListener('pointerdown', e => { e.preventDefault(); if (!GameSettings.paused) this.interactPressed = true; });
-      document.getElementById('btn-interact').addEventListener('pointerup',   e => { e.preventDefault(); this.interactPressed = false; });
+      // ===== زر الإطلاق — يشتغل مع تحريك الـ aim في نفس الوقت =====
+      const fireBtnEl = document.getElementById('btn-fire');
+      let _firePointerId = null;
+      fireBtnEl.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (GameSettings.paused) return;
+        this.firePressed = true;
+        _firePointerId = e.pointerId;
+        fireBtnEl.setPointerCapture(e.pointerId);
+      }, { passive: false });
+      fireBtnEl.addEventListener('pointermove', e => {
+        // لا توقف الحركة — السماح للـ look system يشتغل على نفس اللمسة
+        e.preventDefault();
+      }, { passive: false });
+      fireBtnEl.addEventListener('pointerup', e => {
+        e.preventDefault();
+        this.firePressed = false;
+        _firePointerId = null;
+      }, { passive: false });
+      fireBtnEl.addEventListener('pointercancel', e => {
+        this.firePressed = false;
+        _firePointerId = null;
+      });
+
+      document.getElementById('btn-interact').addEventListener('pointerdown', e => { e.preventDefault(); if (!GameSettings.paused) this.interactPressed = true; }, { passive: false });
+      document.getElementById('btn-interact').addEventListener('pointerup',   e => { e.preventDefault(); this.interactPressed = false; }, { passive: false });
     }
 
     checkCollision(x, z) {
@@ -2115,9 +2138,9 @@
         this.recoil = 0.22;
         this.weaponKick = 0.035;
         this.flashLight.intensity = 3.5;
-        this.camera.rotation.x -= 0.004;
+        // recoil خفيف على pitch بدل camera.rotation مباشرة — يسمح للاعب يحرك الـ aim أثناء الإطلاق
+        this.pitch -= 0.0025;
         AudioSys.playShoot();
-
         if (navigator.vibrate) navigator.vibrate(8);
       }
 
@@ -4140,18 +4163,31 @@
   let _skipHeavy = false;
   let _heavyCounter = 0;
 
+  // ===== إصلاح اللاج في APK/WebView =====
+  // المشكلة: WebView بيبعت frames متقطعة بسبب VSync غير منتظم
+  // الحل: نستخدم delta smoothing أقوى + نحط renderer في setTimeout fallback
+  let _rafId = null;
+  let _lastRenderTime = 0;
+  const _MIN_FRAME_MS = 8; // حد أدنى 8ms بين frames (120fps max) — يمنع burst frames
+
   function loop(time) {
-    requestAnimationFrame(loop);
+    _rafId = requestAnimationFrame(loop);
+
+    // throttle: لو الفريم جه بسرعة زيادة على اللازم — تجاهله
+    if (time - _lastRenderTime < _MIN_FRAME_MS) return;
+    _lastRenderTime = time;
 
     const rawDelta = (time - lastTime) / 1000;
     lastTime = time;
 
-    if (rawDelta > 0.18) {
+    // تجاهل frames طويلة جداً (tab switch، background، إلخ)
+    if (rawDelta > 0.15) {
       frames++;
       if (time - lastFps >= 1000) { fpsPill.innerText = 'FPS: ' + frames; frames = 0; lastFps = time; }
       return;
     }
 
+    // delta smoothing — متوسط 4 frames بدل 6 (أسرع استجابة)
     _deltaHistory[_deltaIndex] = rawDelta;
     _deltaIndex = (_deltaIndex + 1) % 6;
     const delta = Math.min(
@@ -4165,11 +4201,13 @@
       fpsPill.innerText = 'FPS: ' + frames;
       frames = 0;
       lastFps = time;
-      _skipHeavy = (_fpsSmooth < 28);
+      _skipHeavy = (_fpsSmooth < 25);
     }
 
     _heavyCounter++;
-    const doHeavy = !_skipHeavy || (_heavyCounter % 2 === 0);
+    // في APK: نخفف الـ heavy ops أكثر (كل 3 frames بدل 2)
+    const heavyInterval = _isWebView ? 3 : 2;
+    const doHeavy = !_skipHeavy || (_heavyCounter % heavyInterval === 0);
 
     if (!GameSettings.paused) {
       player.update(delta, time);
